@@ -1,0 +1,27 @@
+# permissions for end users to edit clusterissuers.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: infisical-issuer
+    app.kubernetes.io/managed-by: kustomize
+  name: clusterissuer-editor-role
+rules:
+- apiGroups:
+  - infisical-issuer.infisical.com
+  resources:
+  - clusterissuers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - infisical-issuer.infisical.com
+  resources:
+  - clusterissuers/status
+  verbs:
+  - get
