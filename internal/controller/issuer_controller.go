@@ -79,6 +79,7 @@ func (r *IssuerReconciler) newIssuer() (client.Object, error) {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.19.0/pkg/reconcile
 func (r *IssuerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, err error) {
+	fmt.Println("Inside IssuerReconciler")
 	log := ctrl.LoggerFrom(ctx)
 
 	issuer, err := r.newIssuer()
@@ -155,7 +156,7 @@ func (r *IssuerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 		return ctrl.Result{}, fmt.Errorf("%w, secret name: %s, reason: %v", errGetAuthSecret, secretName, err)
 	}
 
-	checker, err := r.HealthCheckerBuilder(issuerSpec, secret.Data)
+	checker, err := r.HealthCheckerBuilder(issuerSpec, secret.Data) // NOTE (dangtony98): Consider removing health check for now
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("%w: %v", errHealthCheckerBuilder, err)
 	}

@@ -1,0 +1,37 @@
+apiVersion: policy.cert-manager.io/v1alpha1
+kind: CertificateRequestPolicy
+metadata:
+  name: infisical-clusterissuer-allow-all
+spec:
+  allowed:
+    commonName: {value: "*"}
+    dnsNames: {values: ["*"]}
+    ipAddresses: {values: ["*"]}
+    uris: {values: ["*"]}
+    emailAddresses: {values: ["*"]}
+    isCA: false
+    usages:
+      - "signing"
+      - "digital signature"
+      - "key encipherment"
+      - "server auth"
+      - "client auth"
+    subject:
+      organizations: {values: ["*"]}
+      countries: {values: ["*"]}
+      organizationalUnits: {values: ["*"]}
+      localities: {values: ["*"]}
+      provinces: {values: ["*"]}
+      streetAddresses: {values: ["*"]}
+      postalCodes: {values: ["*"]}
+      serialNumber: {value: "*"}
+  constraints:
+    privateKey:
+      algorithm: ECDSA
+      minSize: 256
+      maxSize: 521
+  selector:
+    issuerRef:
+      name: "clusterissuer-infisical"
+      kind: ClusterIssuer
+      group: infisical-issuer.infisical.com

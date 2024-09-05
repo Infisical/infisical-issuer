@@ -3,9 +3,12 @@ kind: Certificate
 metadata:
   name: certificate-by-clusterissuer
 spec:
-  commonName: certificate-by-clusterissuer.example.com
+  commonName: certificate-by-clusterissuer.infisical.com
   secretName: certificate-by-clusterissuer
   issuerRef:
-    name: clusterissuer-sample
-    group: sample-issuer.example.com
+    name: clusterissuer-infisical
+    group: infisical-issuer.infisical.com
     kind: ClusterIssuer
+  privateKey:
+    algorithm: ECDSA
+    size: 256

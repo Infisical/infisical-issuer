@@ -89,6 +89,7 @@ YcXl/jdU/2nHdY6r7m6xIapxs0hdDMF/lML2SszUIukZw73NJp3x7L9enCY=
 )
 
 func (o *exampleSigner) Sign(csrBytes []byte) ([]byte, error) {
+	fmt.Println("Inside Sign")
 	fmt.Println("csrBytes: ", csrBytes)
 	csr, err := parseCSR(csrBytes)
 	fmt.Println("csr: ", csr)

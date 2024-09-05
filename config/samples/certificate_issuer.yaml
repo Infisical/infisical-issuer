@@ -6,6 +6,9 @@ spec:
   commonName: certificate-by-issuer.example.com
   secretName: certificate-by-issuer
   issuerRef:
-    name: issuer-sample
-    group: sample-issuer.example.com
+    name: issuer-infisical
+    group: infisical-issuer.infisical.com
     kind: Issuer
+  privateKey:
+    algorithm: ECDSA
+    size: 256

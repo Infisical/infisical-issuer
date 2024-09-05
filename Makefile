@@ -89,13 +89,13 @@ deploy-cert-manager: ## Deploy cert-manager in the configured Kubernetes cluster
 e2e: ## Run E2E tests
 	kubectl apply --filename config/samples
 
-	kubectl wait --for=condition=Ready --timeout=5s issuers.sample-issuer.example.com issuer-sample
-	kubectl wait --for=condition=Ready --timeout=5s  certificaterequests.cert-manager.io issuer-sample
-	kubectl wait --for=condition=Ready --timeout=5s  certificates.cert-manager.io certificate-by-issuer
+	kubectl wait --for=condition=Ready --timeout=10s issuers.infisical-issuer.infisical.com issuer-infisical
+	kubectl wait --for=condition=Ready --timeout=10s  certificaterequests.cert-manager.io issuer-infisical
+	kubectl wait --for=condition=Ready --timeout=10s  certificates.cert-manager.io certificate-by-issuer
 
-	kubectl wait --for=condition=Ready --timeout=5s clusterissuers.sample-issuer.example.com clusterissuer-sample
-	kubectl wait --for=condition=Ready --timeout=5s  certificaterequests.cert-manager.io clusterissuer-sample
-	kubectl wait --for=condition=Ready --timeout=5s  certificates.cert-manager.io certificate-by-clusterissuer
+	kubectl wait --for=condition=Ready --timeout=10s clusterissuers.infisical-issuer.infisical.com clusterissuer-infisical
+	kubectl wait --for=condition=Ready --timeout=10s  certificaterequests.cert-manager.io clusterissuer-infisical
+	kubectl wait --for=condition=Ready --timeout=10s  certificates.cert-manager.io certificate-by-clusterissuer
 
 	kubectl delete --filename config/samples
 
@@ -174,6 +174,7 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 # 	$(KUSTOMIZE) build build/kustomize > $@
 
 # NOTE (dangtony98): Updated 
+.PHONY: ${INSTALL_YAML}
 ${INSTALL_YAML}: manifests kustomize
 	@echo "Creating install YAML..."
 	mkdir -p $(dir $@)
@@ -228,16 +229,16 @@ $(KUSTOMIZE): $(LOCALBIN)
 	fi
 	test -s $(LOCALBIN)/kustomize || { curl -Ss $(KUSTOMIZE_INSTALL_SCRIPT) | bash -s -- $(subst v,,$(KUSTOMIZE_VERSION)) $(LOCALBIN); }
 
-# .PHONY: controller-gen
-# controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary. If wrong version is installed, it will be overwritten.
-# $(CONTROLLER_GEN): $(LOCALBIN)
-# 	test -s $(LOCALBIN)/controller-gen && $(LOCALBIN)/controller-gen --version | grep -q $(CONTROLLER_TOOLS_VERSION) || \
-# 	GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_TOOLS_VERSION)
-
 .PHONY: controller-gen
-controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary.
+controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary. If wrong version is installed, it will be overwritten.
 $(CONTROLLER_GEN): $(LOCALBIN)
-	$(call go-install-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen,$(CONTROLLER_TOOLS_VERSION))
+	test -s $(LOCALBIN)/controller-gen && $(LOCALBIN)/controller-gen --version | grep -q $(CONTROLLER_TOOLS_VERSION) || \
+	GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_TOOLS_VERSION)
+
+# .PHONY: controller-gen
+# controller-gen: $(CONTROLLER_GEN) ## Download controller-gen locally if necessary.
+# $(CONTROLLER_GEN): $(LOCALBIN)
+# 	$(call go-install-tool,$(CONTROLLER_GEN),sigs.k8s.io/controller-tools/cmd/controller-gen,$(CONTROLLER_TOOLS_VERSION))
 
 .PHONY: envtest
 envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.

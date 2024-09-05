@@ -179,6 +179,8 @@ func main() {
 		Kind:   "Issuer",
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
+		ClusterResourceNamespace: clusterResourceNamespace,
+		HealthCheckerBuilder:     signer.ExampleHealthCheckerFromIssuerAndSecretData,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Issuer")
 		os.Exit(1)

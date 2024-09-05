@@ -59,8 +59,8 @@ type CertificateRequestReconciler struct {
 	recorder               record.EventRecorder
 }
 
-// +kubebuilder:rbac:groups=infisical-issuer.infisical.com,resources=certificaterequests,verbs=get;list;watch
-// +kubebuilder:rbac:groups=infisical-issuer.infisical.com,resources=certificaterequests/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=cert-manager.io,resources=certificaterequests,verbs=get;list;watch
+// +kubebuilder:rbac:groups=cert-manager.io,resources=certificaterequests/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
@@ -74,13 +74,11 @@ type CertificateRequestReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.19.0/pkg/reconcile
 func (r *CertificateRequestReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, err error) {
-	fmt.Println("Reconciling CertificateRequest ctx: ", ctx)
-	fmt.Println("Reconciling CertificateRequest req: ", req)
 	log := ctrl.LoggerFrom(ctx)
+	fmt.Println("Inside CertificateRequestReconciler")
 
 	// Get the CertificateRequest
 	var certificateRequest cmapi.CertificateRequest
-	fmt.Println("Reconciling cert: ", certificateRequest)
 	if err := r.Get(ctx, req.NamespacedName, &certificateRequest); err != nil {
 		if err := client.IgnoreNotFound(err); err != nil {
 			return ctrl.Result{}, fmt.Errorf("unexpected get error: %v", err)
@@ -91,7 +89,7 @@ func (r *CertificateRequestReconciler) Reconcile(ctx context.Context, req ctrl.R
 
 	// Ignore CertificateRequest if issuerRef doesn't match our group
 	if certificateRequest.Spec.IssuerRef.Group != sampleissuerapi.GroupVersion.Group {
-		log.Info("Foreign group. Ignoring.", "group", certificateRequest.Spec.IssuerRef.Group)
+		log.Info("Foreign group. Ignoring.", "group", certificateRequest.Spec.IssuerRef.Group, "expectedGroup", sampleissuerapi.GroupVersion.Group)
 		return ctrl.Result{}, nil
 	}
 
@@ -224,10 +222,7 @@ func (r *CertificateRequestReconciler) Reconcile(ctx context.Context, req ctrl.R
 	}
 
 	issuerSpec, issuerStatus, err := issuerutil.GetSpecAndStatus(issuer)
-	fmt.Println("issuerSpec: ", issuerSpec)
-	fmt.Println("issuerSpec2: ", &issuerSpec)
-	fmt.Println("issuerSpec3: ", *issuerSpec)
-	fmt.Println("issuerStatus: ", issuerStatus)
+
 	if err != nil {
 		report(cmapi.CertificateRequestReasonFailed, "Unable to get the IssuerStatus. Ignoring", err)
 		return ctrl.Result{}, nil
@@ -247,22 +242,18 @@ func (r *CertificateRequestReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, fmt.Errorf("%w, secret name: %s, reason: %v", errGetAuthSecret, secretName, err)
 	}
 
-	fmt.Println("issuerSpec.AuthSecretName: ", issuerSpec.AuthSecretName)
-	fmt.Println("issuerSpec.URL: ", issuerSpec.URL)
-	fmt.Println("secret: ", secret)
-
+	fmt.Println("Inside CertificateRequestReconciler SignerBuilder")
 	signer, err := r.SignerBuilder(issuerSpec, secret.Data)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("%w: %v", errSignerBuilder, err)
 	}
 
-	fmt.Println("certificateRequest.Spec.Request: ", certificateRequest.Spec.Request)
+	fmt.Println("Inside CertificateRequestReconciler Sign")
 	signed, err := signer.Sign(certificateRequest.Spec.Request)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("%w: %v", errSignerSign, err)
 	}
-
-	fmt.Println("signed: ", signed)
+	fmt.Println("Inside CertificateRequestReconciler signed: ", signed)
 
 	certificateRequest.Status.Certificate = signed
 

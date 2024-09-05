@@ -20,9 +20,24 @@ rules:
   - list
   - watch
 - apiGroups:
-  - infisical-issuer.infisical.com
+  - cert-manager.io
   resources:
   - certificaterequests
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - cert-manager.io
+  resources:
+  - certificaterequests/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - infisical-issuer.infisical.com
+  resources:
   - clusterissuers
   - issuers
   verbs:
@@ -32,7 +47,6 @@ rules:
 - apiGroups:
   - infisical-issuer.infisical.com
   resources:
-  - certificaterequests/status
   - clusterissuers/status
   - issuers/status
   verbs:

@@ -1,7 +1,7 @@
-apiVersion: sample-issuer.example.com/v1alpha1
+apiVersion: infisical-issuer.infisical.com/v1alpha1
 kind: Issuer
 metadata:
-  name: issuer-sample
+  name: issuer-infisical
 spec:
-  authSecretName: "issuer-sample-credentials"
-  url: "http://sample-issuer.example.com/api/v1"
+  authSecretName: "issuer-infisical-credentials"
+  url: "http://sample-issuer.example.com/api/v1" # TODO: update

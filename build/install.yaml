@@ -376,9 +376,24 @@ rules:
   - list
   - watch
 - apiGroups:
-  - infisical-issuer.infisical.com
+  - cert-manager.io
   resources:
   - certificaterequests
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - cert-manager.io
+  resources:
+  - certificaterequests/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - infisical-issuer.infisical.com
+  resources:
   - clusterissuers
   - issuers
   verbs:
@@ -388,7 +403,6 @@ rules:
 - apiGroups:
   - infisical-issuer.infisical.com
   resources:
-  - certificaterequests/status
   - clusterissuers/status
   - issuers/status
   verbs:
@@ -516,7 +530,7 @@ spec:
         - --health-probe-bind-address=:8081
         command:
         - /manager
-        image: ghcr.io/cert-manager/infisical-issuer/controller:v0.1.0
+        image: ghcr.io/cert-manager/infisical-issuer/controller:v0.1.0-1-g653309f
         livenessProbe:
           httpGet:
             path: /healthz
