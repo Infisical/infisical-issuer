@@ -4,5 +4,5 @@ resources:
 - ../../config/default
 images:
 - name: controller
-  newName: ghcr.io/cert-manager/infisical-issuer/controller
-  newTag: v0.1.0-5-gcd199fd
+  newName: docker.io/infisical/pki-issuer
+  newTag: v0.1.1

@@ -69,8 +69,8 @@ func main() {
 	var clusterResourceNamespace string
 	var disableApprovedCheck bool
 
-	var secureMetrics bool          
-	var enableHTTP2 bool            
+	var secureMetrics bool
+	var enableHTTP2 bool
 	var tlsOpts []func(*tls.Config)
 	flag.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
 		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
@@ -155,7 +155,7 @@ func main() {
 		WebhookServer:          webhookServer,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "c2b0987f.infisical.com",
+		LeaderElectionID:       "infisical-issuer-lock",
 		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily
 		// when the Manager ends. This requires the binary to immediately end when the
 		// Manager is stopped, otherwise, this setting is unsafe. Setting this significantly

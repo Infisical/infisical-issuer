@@ -176,6 +176,6 @@ func (r *IssuerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 	r.recorder = mgr.GetEventRecorderFor(sampleissuerapi.EventSource)
 	return ctrl.NewControllerManagedBy(mgr).
-		For(issuerType). // NOTE(dangtony98): This is the type of the issuer
+		For(issuerType).
 		Complete(r)
 }

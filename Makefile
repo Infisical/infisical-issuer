@@ -9,8 +9,8 @@ SHELL := bash
 # and which will be used as the Docker image tag
 VERSION ?= $(shell git describe --tags)
 # The Docker repository name, overridden in CI.
-DOCKER_REGISTRY ?= ghcr.io
-DOCKER_IMAGE_NAME ?= cert-manager/infisical-issuer/controller
+DOCKER_REGISTRY ?= docker.io
+DOCKER_IMAGE_NAME ?= infisical/pki-issuer
 # Image URL to use all building/pushing image targets
 IMG ?= ${DOCKER_REGISTRY}/${DOCKER_IMAGE_NAME}:${VERSION}
 
