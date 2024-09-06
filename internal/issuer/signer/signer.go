@@ -2,6 +2,7 @@ package signer
 
 import (
 	"encoding/pem"
+	"fmt"
 	"time"
 
 	"github.com/Infisical/infisical-issuer/api/v1alpha1"
@@ -20,18 +21,21 @@ type Signer interface {
 
 type SignerBuilder func(*v1alpha1.IssuerSpec, map[string][]byte) (Signer, error)
 
-func ExampleHealthCheckerFromIssuerAndSecretData(*v1alpha1.IssuerSpec, map[string][]byte) (HealthChecker, error) {
-	return &exampleSigner{}, nil
+func ExampleHealthCheckerFromIssuerAndSecretData(spec *v1alpha1.IssuerSpec, secretData map[string][]byte) (HealthChecker, error) {
+	return &exampleSigner{
+		siteUrl: spec.URL,
+		caId: spec.CaId,
+		clientId: spec.Authentication.UniversalAuth.ClientId,
+		clientSecret: string(secretData["clientSecret"]),
+	}, nil
 }
 
 func ExampleSignerFromIssuerAndSecretData(spec *v1alpha1.IssuerSpec, secretData map[string][]byte) (Signer, error) {
-	clientSecret := string(secretData["clientSecret"]) // Extract clientSecret from secretData
-	
 	return &exampleSigner{
 		siteUrl: spec.URL,
 		caId:    spec.CaId,
 		clientId:     spec.Authentication.UniversalAuth.ClientId,
-		clientSecret: clientSecret,
+		clientSecret: string(secretData["clientSecret"]),
 	}, nil
 }
 
@@ -43,7 +47,23 @@ type exampleSigner struct {
 }
 
 func (o *exampleSigner) Check() error {
-	// TODO (dangtony98): Implement health check
+	client := resty.New()
+
+	// Perform the GET request to the health check endpoint
+	resp, err := client.R().
+		SetHeader("Content-Type", "application/json").
+		Get(o.siteUrl + "/api/status")
+
+	// Check if there was an error making the request
+	if err != nil {
+		return fmt.Errorf("Failed to check health of example signer: %w", err)
+	}
+
+	// Check the HTTP status code returned by the server
+	if resp.StatusCode() != 200 {
+		return fmt.Errorf("Health check failed: received status code %d, response: %s", resp.StatusCode(), resp.String())
+	}
+	
 	return nil
 }
 

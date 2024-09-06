@@ -588,7 +588,7 @@ spec:
         - --health-probe-bind-address=:8081
         command:
         - /manager
-        image: ghcr.io/cert-manager/infisical-issuer/controller:v0.1.0-2-gea0f437
+        image: ghcr.io/cert-manager/infisical-issuer/controller:v0.1.0-3-g495bc40
         livenessProbe:
           httpGet:
             path: /healthz
