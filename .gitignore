@@ -26,6 +26,4 @@ go.work
 *.swo
 *~
 
-# sample client secret
-config/samples/secret_clusterissuer.yaml
-config/samples/secret_issuer.yaml
+.DS_Store

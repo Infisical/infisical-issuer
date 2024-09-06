@@ -11,10 +11,8 @@ rules:
     resourceNames:
       # Grant approval permissions for namespaced issuers
       - "issuers.infisical-issuer.infisical.com/default.issuer-infisical"
-      - "issuers.infisical-issuer.infisical.com/default.issuer-sample"
       # Grant approval permissions for cluster-scoped issuers
       - "clusterissuers.infisical-issuer.infisical.com/clusterissuer-infisical"
-      - "clusterissuers.infisical-issuer.infisical.com/clusterissuer-sample"
 ---
 # Bind the cert-manager service account to the new role
 apiVersion: rbac.authorization.k8s.io/v1

@@ -73,7 +73,6 @@ type IssuerSpec struct {
 	// is set as a flag on the controller component (and defaults to the
 	// namespace that the controller runs in).
 
-	// TODO (dangtony98): update to be more versatile for different auth methods
 	Authentication Authentication `json:"authentication"`
 }
 

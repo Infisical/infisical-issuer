@@ -2,6 +2,7 @@ apiVersion: infisical-issuer.infisical.com/v1alpha1
 kind: Issuer
 metadata:
   name: issuer-infisical
+  namespace: default
 spec:
   url: "https://d72802d248c1.ngrok.app"
   caId: "bed79ed9-4b55-4cd2-aa0c-b944497e5182"

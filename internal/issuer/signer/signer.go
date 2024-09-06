@@ -128,7 +128,7 @@ func (o *signer) Sign(cr certmanager.CertificateRequest) ([]byte, error) {
 	}
 
 	if cr.Spec.Duration != nil {
-		requestBody.Ttl = cr.Spec.Duration.Duration.String()
+		requestBody.Ttl = fmt.Sprintf("%ds", int(cr.Spec.Duration.Duration.Seconds()))
 	}
 
 	// Make the POST request with Bearer token authentication and JSON body
