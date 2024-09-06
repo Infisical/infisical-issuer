@@ -39,15 +39,45 @@ spec:
           spec:
             description: IssuerSpec defines the desired state of Issuer
             properties:
-              authSecretName:
+              authentication:
+                properties:
+                  universalAuth:
+                    properties:
+                      clientId:
+                        description: The Client ID for Universal Auth
+                        type: string
+                      secretRef:
+                        description: The secret containing Client Secret for Universal
+                          Auth
+                        properties:
+                          key:
+                            description: The key in the secret to use
+                            type: string
+                          name:
+                            description: The name of the Kubernetes Secret
+                            type: string
+                        required:
+                        - key
+                        - name
+                        type: object
+                    required:
+                    - clientId
+                    - secretRef
+                    type: object
+                required:
+                - universalAuth
+                type: object
+              caId:
+                description: ID of the CA in Infisical to use for signing certificates.
                 type: string
               url:
                 description: |-
-                  URL is the base URL for the endpoint of the signing service,
-                  for example: "https://sample-signer.example.com/api".
+                  URL is the base URL of the instance of Infisical,
+                  for example: "https://app.infisical.com".
                 type: string
             required:
-            - authSecretName
+            - authentication
+            - caId
             - url
             type: object
           status:

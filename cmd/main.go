@@ -62,8 +62,6 @@ func init() {
 	// +kubebuilder:scaffold:scheme
 }
 
-// TODO: add cluster-resource-namespace flag
-
 func main() {
 	var metricsAddr string
 	var probeAddr string
@@ -176,9 +174,9 @@ func main() {
 	}
 
 	if err = (&controller.IssuerReconciler{
-		Kind:   "Issuer",
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Kind:                     "Issuer",
+		Client:                   mgr.GetClient(),
+		Scheme:                   mgr.GetScheme(),
 		ClusterResourceNamespace: clusterResourceNamespace,
 		HealthCheckerBuilder:     signer.ExampleHealthCheckerFromIssuerAndSecretData,
 	}).SetupWithManager(mgr); err != nil {
@@ -186,7 +184,7 @@ func main() {
 		os.Exit(1)
 	}
 	if err = (&controller.IssuerReconciler{
-		Kind:   "ClusterIssuer",
+		Kind:                     "ClusterIssuer",
 		Client:                   mgr.GetClient(),
 		Scheme:                   mgr.GetScheme(),
 		ClusterResourceNamespace: clusterResourceNamespace,

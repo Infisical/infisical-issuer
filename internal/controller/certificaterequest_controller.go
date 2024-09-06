@@ -75,7 +75,6 @@ type CertificateRequestReconciler struct {
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.19.0/pkg/reconcile
 func (r *CertificateRequestReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, err error) {
 	log := ctrl.LoggerFrom(ctx)
-	fmt.Println("Inside CertificateRequestReconciler")
 
 	// Get the CertificateRequest
 	var certificateRequest cmapi.CertificateRequest
@@ -233,7 +232,7 @@ func (r *CertificateRequestReconciler) Reconcile(ctx context.Context, req ctrl.R
 	}
 
 	secretName := types.NamespacedName{
-		Name:      issuerSpec.AuthSecretName,
+		Name:      issuerSpec.Authentication.UniversalAuth.SecretRef.Name,
 		Namespace: secretNamespace,
 	}
 
@@ -242,18 +241,15 @@ func (r *CertificateRequestReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, fmt.Errorf("%w, secret name: %s, reason: %v", errGetAuthSecret, secretName, err)
 	}
 
-	fmt.Println("Inside CertificateRequestReconciler SignerBuilder")
 	signer, err := r.SignerBuilder(issuerSpec, secret.Data)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("%w: %v", errSignerBuilder, err)
 	}
 
-	fmt.Println("Inside CertificateRequestReconciler Sign")
 	signed, err := signer.Sign(certificateRequest.Spec.Request)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("%w: %v", errSignerSign, err)
 	}
-	fmt.Println("Inside CertificateRequestReconciler signed: ", signed)
 
 	certificateRequest.Status.Certificate = signed
 

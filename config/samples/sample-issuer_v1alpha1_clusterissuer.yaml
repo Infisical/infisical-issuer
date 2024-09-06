@@ -3,5 +3,11 @@ kind: ClusterIssuer
 metadata:
   name: clusterissuer-infisical
 spec:
-  authSecretName: "clusterissuer-infisical-credentials"
-  url: "http://sample-issuer.example.com/api/v1" # TODO: update
+  url: "https://d72802d248c1.ngrok.app"
+  caId: "bed79ed9-4b55-4cd2-aa0c-b944497e5182"
+  authentication:
+    universalAuth:
+      clientId: "d6957e18-2cf1-440b-987f-aa0afd9f0744"
+      secretRef:
+        name: "clusterissuer-infisical-client-secret"
+        key: "clientSecret"

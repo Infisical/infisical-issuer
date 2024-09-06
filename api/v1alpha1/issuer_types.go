@@ -23,6 +23,30 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
+type Authentication struct {
+	UniversalAuth UniversalAuthDetails `json:"universalAuth"`
+}
+
+type UniversalAuthDetails struct {
+	// The Client ID for Universal Auth
+	// +kubebuilder:validation:Required
+	ClientId string `json:"clientId"`
+
+	// The secret containing Client Secret for Universal Auth
+	// +kubebuilder:validation:Required
+	SecretRef KubeSecretReference `json:"secretRef"`
+}
+
+type KubeSecretReference struct {
+	// The name of the Kubernetes Secret
+	// +kubebuilder:validation:Required
+	Name string `json:"name"`
+
+	// The key in the secret to use
+	// +kubebuilder:validation:Required
+	Key string `json:"key"`
+}
+
 // IssuerSpec defines the desired state of Issuer
 type IssuerSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
@@ -36,9 +60,12 @@ type IssuerSpec struct {
 
 	// ---
 
-	// URL is the base URL for the endpoint of the signing service,
-	// for example: "https://sample-signer.example.com/api".
+	// URL is the base URL of the instance of Infisical,
+	// for example: "https://app.infisical.com".
 	URL string `json:"url"`
+
+	// ID of the CA in Infisical to use for signing certificates.
+	CaId string `json:"caId"`
 
 	// A reference to a Secret in the same namespace as the referent. If the
 	// referent is a ClusterIssuer, the reference instead refers to the resource
@@ -47,7 +74,7 @@ type IssuerSpec struct {
 	// namespace that the controller runs in).
 
 	// TODO (dangtony98): update to be more versatile for different auth methods
-	AuthSecretName string `json:"authSecretName"`
+	Authentication Authentication `json:"authentication"`
 }
 
 // IssuerStatus defines the observed state of Issuer

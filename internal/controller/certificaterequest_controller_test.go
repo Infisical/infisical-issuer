@@ -91,7 +91,14 @@ func TestCertificateRequestReconcile(t *testing.T) {
 					Namespace: "ns1",
 				},
 				Spec: sampleissuerapi.IssuerSpec{
-					AuthSecretName: "issuer1-credentials",
+					Authentication: sampleissuerapi.Authentication{
+						UniversalAuth: sampleissuerapi.UniversalAuthDetails{
+							SecretRef: sampleissuerapi.KubeSecretReference{
+								Name: "issuer1-credentials",
+								Key:  "clientSecret",
+							},
+						},
+					},
 				},
 				Status: sampleissuerapi.IssuerStatus{
 					Conditions: []sampleissuerapi.IssuerCondition{
@@ -145,7 +152,14 @@ func TestCertificateRequestReconcile(t *testing.T) {
 						Name: "clusterissuer1",
 					},
 					Spec: sampleissuerapi.IssuerSpec{
-						AuthSecretName: "clusterissuer1-credentials",
+						Authentication: sampleissuerapi.Authentication{
+							UniversalAuth: sampleissuerapi.UniversalAuthDetails{
+								SecretRef: sampleissuerapi.KubeSecretReference{
+									Name: "clusterissuer1-credentials",
+									Key:  "clientSecret",
+								},
+							},
+						},
 					},
 					Status: sampleissuerapi.IssuerStatus{
 						Conditions: []sampleissuerapi.IssuerCondition{
@@ -373,7 +387,14 @@ func TestCertificateRequestReconcile(t *testing.T) {
 						Namespace: "ns1",
 					},
 					Spec: sampleissuerapi.IssuerSpec{
-						AuthSecretName: "issuer1-credentials",
+						Authentication: sampleissuerapi.Authentication{
+							UniversalAuth: sampleissuerapi.UniversalAuthDetails{
+								SecretRef: sampleissuerapi.KubeSecretReference{
+									Name: "issuer1-credentials",
+									Key:  "clientSecret",
+								},
+							},
+						},
 					},
 					Status: sampleissuerapi.IssuerStatus{
 						Conditions: []sampleissuerapi.IssuerCondition{
@@ -425,7 +446,14 @@ func TestCertificateRequestReconcile(t *testing.T) {
 						Namespace: "ns1",
 					},
 					Spec: sampleissuerapi.IssuerSpec{
-						AuthSecretName: "issuer1-credentials",
+						Authentication: sampleissuerapi.Authentication{
+							UniversalAuth: sampleissuerapi.UniversalAuthDetails{
+								SecretRef: sampleissuerapi.KubeSecretReference{
+									Name: "issuer1-credentials",
+									Key:  "clientSecret",
+								},
+							},
+						},
 					},
 					Status: sampleissuerapi.IssuerStatus{
 						Conditions: []sampleissuerapi.IssuerCondition{
@@ -480,7 +508,14 @@ func TestCertificateRequestReconcile(t *testing.T) {
 						Namespace: "ns1",
 					},
 					Spec: sampleissuerapi.IssuerSpec{
-						AuthSecretName: "issuer1-credentials",
+						Authentication: sampleissuerapi.Authentication{
+							UniversalAuth: sampleissuerapi.UniversalAuthDetails{
+								SecretRef: sampleissuerapi.KubeSecretReference{
+									Name: "issuer1-credentials",
+									Key:  "clientSecret",
+								},
+							},
+						},
 					},
 					Status: sampleissuerapi.IssuerStatus{
 						Conditions: []sampleissuerapi.IssuerCondition{
@@ -531,7 +566,14 @@ func TestCertificateRequestReconcile(t *testing.T) {
 						Namespace: "ns1",
 					},
 					Spec: sampleissuerapi.IssuerSpec{
-						AuthSecretName: "issuer1-credentials",
+						Authentication: sampleissuerapi.Authentication{
+							UniversalAuth: sampleissuerapi.UniversalAuthDetails{
+								SecretRef: sampleissuerapi.KubeSecretReference{
+									Name: "issuer1-credentials",
+									Key:  "clientSecret",
+								},
+							},
+						},
 					},
 					Status: sampleissuerapi.IssuerStatus{
 						Conditions: []sampleissuerapi.IssuerCondition{
@@ -577,7 +619,14 @@ func TestCertificateRequestReconcile(t *testing.T) {
 						Namespace: "ns1",
 					},
 					Spec: sampleissuerapi.IssuerSpec{
-						AuthSecretName: "issuer1-credentials",
+						Authentication: sampleissuerapi.Authentication{
+							UniversalAuth: sampleissuerapi.UniversalAuthDetails{
+								SecretRef: sampleissuerapi.KubeSecretReference{
+									Name: "issuer1-credentials",
+									Key:  "clientSecret",
+								},
+							},
+						},
 					},
 					Status: sampleissuerapi.IssuerStatus{
 						Conditions: []sampleissuerapi.IssuerCondition{
