@@ -27,10 +27,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	// sampleissuerapi "github.com/cert-manager/sample-external-issuer/api/v1alpha1"
-	// "github.com/cert-manager/sample-external-issuer/internal/issuer/signer"
 	sampleissuerapi "github.com/Infisical/infisical-issuer/api/v1alpha1"
 	"github.com/Infisical/infisical-issuer/internal/issuer/signer"
+	certmanager "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 )
 
 var (
@@ -42,7 +41,7 @@ type fakeSigner struct {
 	errSign error
 }
 
-func (o *fakeSigner) Sign([]byte) ([]byte, error) {
+func (o *fakeSigner) Sign(certmanager.CertificateRequest) ([]byte, error) {
 	return []byte("fake signed certificate"), o.errSign
 }
 

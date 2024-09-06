@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/Infisical/infisical-issuer/api/v1alpha1"
+	certmanager "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 	"github.com/go-resty/resty/v2"
 )
 
@@ -16,37 +17,37 @@ type HealthChecker interface {
 type HealthCheckerBuilder func(*v1alpha1.IssuerSpec, map[string][]byte) (HealthChecker, error)
 
 type Signer interface {
-	Sign([]byte) ([]byte, error)
+	Sign(certmanager.CertificateRequest) ([]byte, error)
 }
 
 type SignerBuilder func(*v1alpha1.IssuerSpec, map[string][]byte) (Signer, error)
 
-func ExampleHealthCheckerFromIssuerAndSecretData(spec *v1alpha1.IssuerSpec, secretData map[string][]byte) (HealthChecker, error) {
-	return &exampleSigner{
-		siteUrl: spec.URL,
-		caId: spec.CaId,
-		clientId: spec.Authentication.UniversalAuth.ClientId,
-		clientSecret: string(secretData["clientSecret"]),
-	}, nil
-}
-
-func ExampleSignerFromIssuerAndSecretData(spec *v1alpha1.IssuerSpec, secretData map[string][]byte) (Signer, error) {
-	return &exampleSigner{
-		siteUrl: spec.URL,
-		caId:    spec.CaId,
+func HealthCheckerFromIssuerAndSecretData(spec *v1alpha1.IssuerSpec, secretData map[string][]byte) (HealthChecker, error) {
+	return &signer{
+		siteUrl:      spec.URL,
+		caId:         spec.CaId,
 		clientId:     spec.Authentication.UniversalAuth.ClientId,
 		clientSecret: string(secretData["clientSecret"]),
 	}, nil
 }
 
-type exampleSigner struct {
-	siteUrl string
-	caId    string
-	clientId string
+func SignerFromIssuerAndSecretData(spec *v1alpha1.IssuerSpec, secretData map[string][]byte) (Signer, error) {
+	return &signer{
+		siteUrl:      spec.URL,
+		caId:         spec.CaId,
+		clientId:     spec.Authentication.UniversalAuth.ClientId,
+		clientSecret: string(secretData["clientSecret"]),
+	}, nil
+}
+
+type signer struct {
+	siteUrl      string
+	caId         string
+	clientId     string
 	clientSecret string
 }
 
-func (o *exampleSigner) Check() error {
+func (o *signer) Check() error {
 	client := resty.New()
 
 	// Perform the GET request to the health check endpoint
@@ -56,14 +57,14 @@ func (o *exampleSigner) Check() error {
 
 	// Check if there was an error making the request
 	if err != nil {
-		return fmt.Errorf("Failed to check health of example signer: %w", err)
+		return fmt.Errorf("Failed to check health of signer: %w", err)
 	}
 
 	// Check the HTTP status code returned by the server
 	if resp.StatusCode() != 200 {
 		return fmt.Errorf("Health check failed: received status code %d, response: %s", resp.StatusCode(), resp.String())
 	}
-	
+
 	return nil
 }
 
@@ -85,19 +86,20 @@ type SignCertificateResponse struct {
 	SerialNumber         string `json:"serialNumber"`
 }
 
+// NOTE (dangtony98): Add support for certificate template in the future
 type SignCertificateRequest struct {
-	CaId                  string  `json:"caId,omitempty"`                  // Optional, use pointer to indicate optional fields
-	CertificateTemplateId *string `json:"certificateTemplateId,omitempty"` // Optional
-	PkiCollectionId       *string `json:"pkiCollectionId,omitempty"`       // Optional
-	Csr                   string  `json:"csr"`                             // Required
-	FriendlyName          *string `json:"friendlyName,omitempty"`          // Optional
-	CommonName            string  `json:"commonName,omitempty"`            // Optional
-	Ttl                   string  `json:"ttl,omitempty"`                   // Optional
-	NotBefore             *string `json:"notBefore,omitempty"`             // Optional
-	NotAfter              *string `json:"notAfter,omitempty"`              // Optional
+	CaId string `json:"caId,omitempty"` // Optional, use pointer to indicate optional fields
+	Csr  string `json:"csr"`            // Required
+	Ttl  string `json:"ttl,omitempty"`  // Optional
 }
 
-func (o *exampleSigner) Sign(csrBytes []byte) ([]byte, error) {
+func (o *signer) Sign(cr certmanager.CertificateRequest) ([]byte, error) {
+	csrBytes := cr.Spec.Request
+	// csr, err := parseCSR(csrBytes)
+	// if err != nil {
+	//     return nil, err
+	// }
+
 	client := resty.New()
 
 	authResponse := AuthResponse{}
@@ -118,18 +120,15 @@ func (o *exampleSigner) Sign(csrBytes []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	// NOTE (dangtony98): Take TTL from spec
 	// Define the request body based on your CSR
 	requestBody := SignCertificateRequest{
-		CaId:                  o.caId,           // This field is optional, so it can be nil
-		CertificateTemplateId: nil,              // Optional
-		PkiCollectionId:       nil,              // Optional
-		Csr:                   string(csrBytes), // Required
-		FriendlyName:          nil,              // Optional
-		CommonName:            "example.com",    // Optional
-		Ttl:                   "3d",             // Optional
-		NotBefore:             nil,              // Optional
-		NotAfter:              nil,              // Optional
+		CaId: o.caId,
+		Csr:  string(csrBytes), // Required
+		Ttl:  "90d",            // Default  ttl
+	}
+
+	if cr.Spec.Duration != nil {
+		requestBody.Ttl = cr.Spec.Duration.Duration.String()
 	}
 
 	// Make the POST request with Bearer token authentication and JSON body
@@ -141,7 +140,8 @@ func (o *exampleSigner) Sign(csrBytes []byte) ([]byte, error) {
 		Post(o.siteUrl + "/api/v1/pki/certificates/sign-certificate")
 
 	certificate := signCertificateResponse.Certificate
-	block, _ := pem.Decode([]byte(certificate)) 
+
+	block, _ := pem.Decode([]byte(certificate))
 	pem.EncodeToMemory(&pem.Block{
 		Type:  "CERTIFICATE",
 		Bytes: block.Bytes,

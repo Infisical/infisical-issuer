@@ -178,7 +178,7 @@ func main() {
 		Client:                   mgr.GetClient(),
 		Scheme:                   mgr.GetScheme(),
 		ClusterResourceNamespace: clusterResourceNamespace,
-		HealthCheckerBuilder:     signer.ExampleHealthCheckerFromIssuerAndSecretData,
+		HealthCheckerBuilder:     signer.HealthCheckerFromIssuerAndSecretData,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Issuer")
 		os.Exit(1)
@@ -188,7 +188,7 @@ func main() {
 		Client:                   mgr.GetClient(),
 		Scheme:                   mgr.GetScheme(),
 		ClusterResourceNamespace: clusterResourceNamespace,
-		HealthCheckerBuilder:     signer.ExampleHealthCheckerFromIssuerAndSecretData,
+		HealthCheckerBuilder:     signer.HealthCheckerFromIssuerAndSecretData,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ClusterIssuer")
 		os.Exit(1)
@@ -197,7 +197,7 @@ func main() {
 		Client:                   mgr.GetClient(),
 		Scheme:                   mgr.GetScheme(),
 		ClusterResourceNamespace: clusterResourceNamespace,
-		SignerBuilder:            signer.ExampleSignerFromIssuerAndSecretData,
+		SignerBuilder:            signer.SignerFromIssuerAndSecretData,
 		CheckApprovedCondition:   !disableApprovedCheck,
 		Clock:                    clock.RealClock{},
 	}).SetupWithManager(mgr); err != nil {

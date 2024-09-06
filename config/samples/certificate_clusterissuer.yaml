@@ -12,3 +12,5 @@ spec:
   privateKey:
     algorithm: ECDSA
     size: 256
+  duration: 48h
+  renewBefore: 12h

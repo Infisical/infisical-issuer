@@ -5,4 +5,4 @@ resources:
 images:
 - name: controller
   newName: ghcr.io/cert-manager/infisical-issuer/controller
-  newTag: v0.1.0-3-g495bc40
+  newTag: v0.1.0-4-gdd90ff6
