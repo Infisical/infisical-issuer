@@ -68,7 +68,8 @@ spec:
                 - universalAuth
                 type: object
               caId:
-                description: ID of the CA in Infisical to use for signing certificates.
+                type: string
+              certificateTemplateId:
                 type: string
               url:
                 description: |-
@@ -77,7 +78,6 @@ spec:
                 type: string
             required:
             - authentication
-            - caId
             - url
             type: object
           status:

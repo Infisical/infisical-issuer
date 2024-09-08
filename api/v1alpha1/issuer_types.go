@@ -52,20 +52,19 @@ type IssuerSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// ---
-
-	// note: delete below two lines
-	// Foo is an example field of Issuer. Edit issuer_types.go to remove/update
-	// Foo string `json:"foo,omitempty"`
-
-	// ---
-
 	// URL is the base URL of the instance of Infisical,
 	// for example: "https://app.infisical.com".
 	URL string `json:"url"`
 
 	// ID of the CA in Infisical to use for signing certificates.
+
+	// +kubebuilder:validation:Optional
 	CaId string `json:"caId"`
+
+	// ID of Certificate Template in Infisical to use for signing certificates.
+
+	// +kubebuilder:validation:Optional
+	CertificateTemplateId string `json:"certificateTemplateId"`
 
 	// A reference to a Secret in the same namespace as the referent. If the
 	// referent is a ClusterIssuer, the reference instead refers to the resource

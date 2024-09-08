@@ -3,8 +3,9 @@ kind: ClusterIssuer
 metadata:
   name: clusterissuer-infisical
 spec:
-  url: "https://d72802d248c1.ngrok.app"
-  caId: "bed79ed9-4b55-4cd2-aa0c-b944497e5182"
+  url: ""
+  # caId: "bed79ed9-4b55-4cd2-aa0c-b944497e5182"
+  certificateTemplateId: "e1ab4937-4c66-40c2-9f04-4ee6abae2efc"
   authentication:
     universalAuth:
       clientId: "d6957e18-2cf1-440b-987f-aa0afd9f0744"

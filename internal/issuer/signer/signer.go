@@ -24,27 +24,30 @@ type SignerBuilder func(*v1alpha1.IssuerSpec, map[string][]byte) (Signer, error)
 
 func HealthCheckerFromIssuerAndSecretData(spec *v1alpha1.IssuerSpec, secretData map[string][]byte) (HealthChecker, error) {
 	return &signer{
-		siteUrl:      spec.URL,
-		caId:         spec.CaId,
-		clientId:     spec.Authentication.UniversalAuth.ClientId,
-		clientSecret: string(secretData["clientSecret"]),
+		siteUrl:               spec.URL,
+		caId:                  spec.CaId,
+		clientId:              spec.Authentication.UniversalAuth.ClientId,
+		certificateTemplateId: spec.CertificateTemplateId,
+		clientSecret:          string(secretData["clientSecret"]),
 	}, nil
 }
 
 func SignerFromIssuerAndSecretData(spec *v1alpha1.IssuerSpec, secretData map[string][]byte) (Signer, error) {
 	return &signer{
-		siteUrl:      spec.URL,
-		caId:         spec.CaId,
-		clientId:     spec.Authentication.UniversalAuth.ClientId,
-		clientSecret: string(secretData["clientSecret"]),
+		siteUrl:               spec.URL,
+		caId:                  spec.CaId,
+		certificateTemplateId: spec.CertificateTemplateId,
+		clientId:              spec.Authentication.UniversalAuth.ClientId,
+		clientSecret:          string(secretData["clientSecret"]),
 	}, nil
 }
 
 type signer struct {
-	siteUrl      string
-	caId         string
-	clientId     string
-	clientSecret string
+	siteUrl               string
+	caId                  string
+	certificateTemplateId string
+	clientId              string
+	clientSecret          string
 }
 
 func (o *signer) Check() error {
@@ -79,6 +82,14 @@ type AuthResponse struct {
 	TokenType         string `json:"tokenType"`
 }
 
+// NOTE (dangtony98): Add support for certificate template in the future
+type SignCertificateRequest struct {
+	CaId                  string `json:"caId,omitempty"`
+	CertificateTemplateId string `json:"certificateTemplateId,omitempty"`
+	Csr                   string `json:"csr"`
+	Ttl                   string `json:"ttl,omitempty"`
+}
+
 type SignCertificateResponse struct {
 	Certificate          string `json:"certificate"`
 	CertificateChain     string `json:"certificateChain"`
@@ -86,14 +97,13 @@ type SignCertificateResponse struct {
 	SerialNumber         string `json:"serialNumber"`
 }
 
-// NOTE (dangtony98): Add support for certificate template in the future
-type SignCertificateRequest struct {
-	CaId string `json:"caId,omitempty"` // Optional, use pointer to indicate optional fields
-	Csr  string `json:"csr"`            // Required
-	Ttl  string `json:"ttl,omitempty"`  // Optional
-}
-
 func (o *signer) Sign(cr certmanager.CertificateRequest) ([]byte, error) {
+
+	// Ensure either caId or certificateTemplateId is provided
+	if o.caId == "" && o.certificateTemplateId == "" {
+		return nil, fmt.Errorf("Either caId or certificateTemplateId must be provided")
+	}
+
 	csrBytes := cr.Spec.Request
 	// csr, err := parseCSR(csrBytes)
 	// if err != nil {
@@ -122,9 +132,15 @@ func (o *signer) Sign(cr certmanager.CertificateRequest) ([]byte, error) {
 
 	// Define the request body based on your CSR
 	requestBody := SignCertificateRequest{
-		CaId: o.caId,
-		Csr:  string(csrBytes), // Required
-		Ttl:  "90d",            // Default  ttl
+		Csr: string(csrBytes), // Required
+		Ttl: "90d",            // Default ttl
+	}
+
+	if o.caId != "" {
+		requestBody.CaId = o.caId
+	}
+	if o.certificateTemplateId != "" {
+		requestBody.CertificateTemplateId = o.certificateTemplateId
 	}
 
 	if cr.Spec.Duration != nil {

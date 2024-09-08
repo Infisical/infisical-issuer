@@ -48,6 +48,12 @@ spec:
             description: IssuerSpec defines the desired state of Issuer
             properties:
               authentication:
+                description: |-
+                  A reference to a Secret in the same namespace as the referent. If the
+                  referent is a ClusterIssuer, the reference instead refers to the resource
+                  with the given name in the configured 'cluster resource namespace', which
+                  is set as a flag on the controller component (and defaults to the
+                  namespace that the controller runs in).
                 properties:
                   universalAuth:
                     properties:
@@ -75,7 +81,8 @@ spec:
                 - universalAuth
                 type: object
               caId:
-                description: ID of the CA in Infisical to use for signing certificates.
+                type: string
+              certificateTemplateId:
                 type: string
               url:
                 description: |-
@@ -84,7 +91,6 @@ spec:
                 type: string
             required:
             - authentication
-            - caId
             - url
             type: object
           status:
@@ -176,6 +182,12 @@ spec:
             description: IssuerSpec defines the desired state of Issuer
             properties:
               authentication:
+                description: |-
+                  A reference to a Secret in the same namespace as the referent. If the
+                  referent is a ClusterIssuer, the reference instead refers to the resource
+                  with the given name in the configured 'cluster resource namespace', which
+                  is set as a flag on the controller component (and defaults to the
+                  namespace that the controller runs in).
                 properties:
                   universalAuth:
                     properties:
@@ -203,7 +215,8 @@ spec:
                 - universalAuth
                 type: object
               caId:
-                description: ID of the CA in Infisical to use for signing certificates.
+                type: string
+              certificateTemplateId:
                 type: string
               url:
                 description: |-
@@ -212,7 +225,6 @@ spec:
                 type: string
             required:
             - authentication
-            - caId
             - url
             type: object
           status:
@@ -588,7 +600,7 @@ spec:
         - --health-probe-bind-address=:8081
         command:
         - /manager
-        image: docker.io/infisical/pki-issuer:v0.1.1
+        image: docker.io/infisical/pki-issuer:v0.1.1-2-gb384f71
         livenessProbe:
           httpGet:
             path: /healthz

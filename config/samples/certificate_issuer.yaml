@@ -4,7 +4,7 @@ metadata:
   name: certificate-by-issuer
   namespace: default
 spec:
-  commonName: certificate-by-issuer.example.com
+  commonName: certificate-by-issuer.infisical.com
   secretName: certificate-by-issuer
   issuerRef:
     name: issuer-infisical
