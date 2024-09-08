@@ -1,114 +1,30 @@
-# infisical-issuer
-// TODO(user): Add simple overview of use/purpose
+<h1 align="center">
+  <img width="300" src="/resources/logo.svg#gh-dark-mode-only" alt="infisical">
+</h1>
+<p align="center">
+  <p align="center"><b>The open-source secret management platform</b>: Sync secrets/configs across your team/infrastructure and prevent secret leaks.</p>
+</p>
 
-## Description
-// TODO(user): An in-depth paragraph about your project and overview of use
+## Introduction
 
-## Getting Started
+[Infisical PKI](https://infisical.com/docs/documentation/platform/pki/overview) is an [Infisical](https://infisical.com/) service that can setup and manage private CAs, as well as issue private certifiates.
 
-### Prerequisites
-- go version v1.22.0+
-- docker version 17.03+.
-- kubectl version v1.11.3+.
-- Access to a Kubernetes v1.11.3+ cluster.
+[cert-manager](https://cert-manager.io/) is a Kubernetes add-on to automate the management and issuance of TLS certificates from various issuing sources. It ensures that certificates are valid and up to date periodically, and attempts to renew certificates at an appropriate time before expiry.
 
-### To Deploy on the cluster
-**Build and push your image to the location specified by `IMG`:**
+Infisical PKI Issuer is an addon (see https://cert-manager.io/docs/configuration/external/) to cert-manager that signs off certificate requests using Infisical PKI. The issuer is perfect for getting X.509 certificates for ingresses and other Kubernetes resources and capable of automatically renewing certificates as needed.
 
-```sh
-make docker-build docker-push IMG=<some-registry>/infisical-issuer:tag
-```
+For information on how to use the issuer, please refer to the Infisical PKI Issuer documentation here.
 
-**NOTE:** This image ought to be published in the personal registry you specified.
-And it is required to have access to pull the image from the working environment.
-Make sure you have the proper permission to the registry if the above commands don’t work.
+## Security
 
-**Install the CRDs into the cluster:**
+Please do not file GitHub issues or post on our public forum for security vulnerabilities, as they are public!
 
-```sh
-make install
-```
+Infisical takes security issues very seriously. If you have any concerns about Infisical or believe you have uncovered a vulnerability, please get in touch via the e-mail address security@infisical.com. In the message, try to provide a description of the issue and ideally a way of reproducing it. The security team will get back to you as soon as possible.
 
-**Deploy the Manager to the cluster with the image specified by `IMG`:**
-
-```sh
-make deploy IMG=<some-registry>/infisical-issuer:tag
-```
-
-> **NOTE**: If you encounter RBAC errors, you may need to grant yourself cluster-admin
-privileges or be logged in as admin.
-
-**Create instances of your solution**
-You can apply the samples (examples) from the config/sample:
-
-```sh
-kubectl apply -k config/samples/
-```
-
->**NOTE**: Ensure that the samples has default values to test it out.
-
-### To Uninstall
-**Delete the instances (CRs) from the cluster:**
-
-```sh
-kubectl delete -k config/samples/
-```
-
-**Delete the APIs(CRDs) from the cluster:**
-
-```sh
-make uninstall
-```
-
-**UnDeploy the controller from the cluster:**
-
-```sh
-make undeploy
-```
-
-## Project Distribution
-
-Following are the steps to build the installer and distribute this project to users.
-
-1. Build the installer for the image built and published in the registry:
-
-```sh
-make build-installer IMG=<some-registry>/infisical-issuer:tag
-```
-
-NOTE: The makefile target mentioned above generates an 'install.yaml'
-file in the dist directory. This file contains all the resources built
-with Kustomize, which are necessary to install this project without
-its dependencies.
-
-2. Using the installer
-
-Users can just run kubectl apply -f <URL for YAML BUNDLE> to install the project, i.e.:
-
-```sh
-kubectl apply -f https://raw.githubusercontent.com/<org>/infisical-issuer/<tag or branch>/dist/install.yaml
-```
+Note that this security address should be used only for undisclosed vulnerabilities. Please report any security problems to us before disclosing it publicly.
 
 ## Contributing
-// TODO(user): Add detailed information on how you would like others to contribute to this project
 
-**NOTE:** Run `make help` for more information on all potential `make` targets
+Whether it's big or small, we love contributions. Check out our guide to see how to [get started](https://infisical.com/docs/contributing/getting-started).
 
-More information can be found via the [Kubebuilder Documentation](https://book.kubebuilder.io/introduction.html)
-
-## License
-
-Copyright 2024 Infisical.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
+Not sure where to get started? Join our <a href="https://infisical.com/slack">Slack</a>, and ask us any questions there.
