@@ -1,6 +1,7 @@
 package signer
 
 import (
+	"bytes"
 	"encoding/pem"
 	"fmt"
 	"time"
@@ -17,7 +18,7 @@ type HealthChecker interface {
 type HealthCheckerBuilder func(*v1alpha1.IssuerSpec, map[string][]byte) (HealthChecker, error)
 
 type Signer interface {
-	Sign(certmanager.CertificateRequest) ([]byte, error)
+	Sign(certmanager.CertificateRequest) ([]byte, []byte, error)
 }
 
 type SignerBuilder func(*v1alpha1.IssuerSpec, map[string][]byte) (Signer, error)
@@ -82,7 +83,6 @@ type AuthResponse struct {
 	TokenType         string `json:"tokenType"`
 }
 
-// NOTE (dangtony98): Add support for certificate template in the future
 type SignCertificateRequest struct {
 	CaId                  string `json:"caId,omitempty"`
 	CertificateTemplateId string `json:"certificateTemplateId,omitempty"`
@@ -97,11 +97,11 @@ type SignCertificateResponse struct {
 	SerialNumber         string `json:"serialNumber"`
 }
 
-func (o *signer) Sign(cr certmanager.CertificateRequest) ([]byte, error) {
+func (o *signer) Sign(cr certmanager.CertificateRequest) ([]byte, []byte, error) {
 
 	// Ensure either caId or certificateTemplateId is provided
 	if o.caId == "" && o.certificateTemplateId == "" {
-		return nil, fmt.Errorf("Either caId or certificateTemplateId must be provided")
+		return nil, nil, fmt.Errorf("Either caId or certificateTemplateId must be provided")
 	}
 
 	csrBytes := cr.Spec.Request
@@ -127,7 +127,7 @@ func (o *signer) Sign(cr certmanager.CertificateRequest) ([]byte, error) {
 
 	// Check for errors
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Define the request body based on your CSR
@@ -155,16 +155,35 @@ func (o *signer) Sign(cr certmanager.CertificateRequest) ([]byte, error) {
 		SetResult(&signCertificateResponse).
 		Post(o.siteUrl + "/api/v1/pki/certificates/sign-certificate")
 
-	certificate := signCertificateResponse.Certificate
+	certificate := signCertificateResponse.Certificate // Leaf certificate
+	chainPem := signCertificateResponse.CertificateChain // Full chain (intermediate certs + root cert)
 
-	block, _ := pem.Decode([]byte(certificate))
-	pem.EncodeToMemory(&pem.Block{
-		Type:  "CERTIFICATE",
-		Bytes: block.Bytes,
-	})
+	caChainCerts, rootCACert, err := splitRootCACertificate([]byte(chainPem))
+	certPem := []byte(certificate + "\n")
+	certPem = append(certPem, caChainCerts...)
 
-	return pem.EncodeToMemory(&pem.Block{
-		Type:  "CERTIFICATE",
-		Bytes: block.Bytes,
-	}), nil
+	return certPem, rootCACert, nil
+}
+
+func splitRootCACertificate(caCertChainPem []byte) ([]byte, []byte, error) {
+	var caChainCerts []byte
+	var rootCACert []byte
+	for {
+		block, rest := pem.Decode(caCertChainPem)
+		if block == nil || block.Type != "CERTIFICATE" {
+			return nil, nil, fmt.Errorf("failed to read certificate")
+		}
+		var encBuf bytes.Buffer
+		if err := pem.Encode(&encBuf, block); err != nil {
+			return nil, nil, err
+		}
+		if len(rest) > 0 {
+			caChainCerts = append(caChainCerts, encBuf.Bytes()...)
+			caCertChainPem = rest
+		} else {
+			rootCACert = append(rootCACert, encBuf.Bytes()...)
+			break
+		}
+	}
+	return caChainCerts, rootCACert, nil
 }

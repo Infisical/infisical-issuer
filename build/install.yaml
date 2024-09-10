@@ -48,12 +48,6 @@ spec:
             description: IssuerSpec defines the desired state of Issuer
             properties:
               authentication:
-                description: |-
-                  A reference to a Secret in the same namespace as the referent. If the
-                  referent is a ClusterIssuer, the reference instead refers to the resource
-                  with the given name in the configured 'cluster resource namespace', which
-                  is set as a flag on the controller component (and defaults to the
-                  namespace that the controller runs in).
                 properties:
                   universalAuth:
                     properties:
@@ -182,12 +176,6 @@ spec:
             description: IssuerSpec defines the desired state of Issuer
             properties:
               authentication:
-                description: |-
-                  A reference to a Secret in the same namespace as the referent. If the
-                  referent is a ClusterIssuer, the reference instead refers to the resource
-                  with the given name in the configured 'cluster resource namespace', which
-                  is set as a flag on the controller component (and defaults to the
-                  namespace that the controller runs in).
                 properties:
                   universalAuth:
                     properties:
@@ -600,7 +588,7 @@ spec:
         - --health-probe-bind-address=:8081
         command:
         - /manager
-        image: docker.io/infisical/pki-issuer:v0.1.1-2-gb384f71
+        image: docker.io/infisical/pki-issuer:v0.1.1-3-gc2030ef
         livenessProbe:
           httpGet:
             path: /healthz

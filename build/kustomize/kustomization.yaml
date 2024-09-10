@@ -5,4 +5,4 @@ resources:
 images:
 - name: controller
   newName: docker.io/infisical/pki-issuer
-  newTag: v0.1.1-2-gb384f71
+  newTag: v0.1.1-3-gc2030ef
