@@ -29,7 +29,7 @@ func HealthCheckerFromIssuerAndSecretData(spec *v1alpha1.IssuerSpec, secretData 
 		caId:                  spec.CaId,
 		clientId:              spec.Authentication.UniversalAuth.ClientId,
 		certificateTemplateId: spec.CertificateTemplateId,
-		clientSecret:          string(secretData["clientSecret"]),
+		clientSecret:          string(secretData[spec.Authentication.UniversalAuth.SecretRef.Key]),
 	}, nil
 }
 
@@ -39,7 +39,7 @@ func SignerFromIssuerAndSecretData(spec *v1alpha1.IssuerSpec, secretData map[str
 		caId:                  spec.CaId,
 		certificateTemplateId: spec.CertificateTemplateId,
 		clientId:              spec.Authentication.UniversalAuth.ClientId,
-		clientSecret:          string(secretData["clientSecret"]),
+		clientSecret:          string(secretData[spec.Authentication.UniversalAuth.SecretRef.Key]),
 	}, nil
 }
 
@@ -83,6 +83,12 @@ type AuthResponse struct {
 	TokenType         string `json:"tokenType"`
 }
 
+type AuthError struct {
+	Code    int    `json:"statusCode"`
+	Message string `json:"message"`
+	Error   string `json:"error"`
+}
+
 type SignCertificateRequest struct {
 	CaId                  string `json:"caId,omitempty"`
 	CertificateTemplateId string `json:"certificateTemplateId,omitempty"`
@@ -113,6 +119,7 @@ func (o *signer) Sign(cr certmanager.CertificateRequest) ([]byte, []byte, error)
 	client := resty.New()
 
 	authResponse := AuthResponse{}
+	authError := AuthError{}
 	signCertificateResponse := SignCertificateResponse{}
 
 	// Login operation against Infisical
@@ -123,11 +130,16 @@ func (o *signer) Sign(cr certmanager.CertificateRequest) ([]byte, []byte, error)
 			"clientSecret": o.clientSecret,
 		}).
 		SetResult(&authResponse).
+		SetError(&authError).
 		Post(o.siteUrl + "/api/v1/auth/universal-auth/login")
 
 	// Check for errors
 	if err != nil {
 		return nil, nil, err
+	}
+
+	if authError.Error != "" {
+		return nil, nil, fmt.Errorf("%d %s: %s", authError.Code, authError.Error, authError.Message)
 	}
 
 	// Define the request body based on your CSR
@@ -153,12 +165,24 @@ func (o *signer) Sign(cr certmanager.CertificateRequest) ([]byte, []byte, error)
 		SetHeader("Authorization", "Bearer "+authResponse.AccessToken).
 		SetBody(requestBody).
 		SetResult(&signCertificateResponse).
+		SetError(&authError).
 		Post(o.siteUrl + "/api/v1/pki/certificates/sign-certificate")
 
-	certificate := signCertificateResponse.Certificate // Leaf certificate
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if authError.Error != "" {
+		return nil, nil, fmt.Errorf("%d %s: %s", authError.Code, authError.Error, authError.Message)
+	}
+
+	certificate := signCertificateResponse.Certificate   // Leaf certificate
 	chainPem := signCertificateResponse.CertificateChain // Full chain (intermediate certs + root cert)
 
 	caChainCerts, rootCACert, err := splitRootCACertificate([]byte(chainPem))
+	if err != nil {
+		return nil, nil, err
+	}
 	certPem := []byte(certificate + "\n")
 	certPem = append(certPem, caChainCerts...)
 
