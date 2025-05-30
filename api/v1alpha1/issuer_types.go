@@ -58,13 +58,13 @@ type IssuerSpec struct {
 
 	// ID of the CA in Infisical to use for signing certificates.
 
-	// +kubebuilder:validation:Optional
-	CaId string `json:"caId"`
+	// +kubebuilder:validation:Required
+	ProjectID string `json:"projectId"`
 
 	// ID of Certificate Template in Infisical to use for signing certificates.
 
-	// +kubebuilder:validation:Optional
-	CertificateTemplateId string `json:"certificateTemplateId"`
+	// +kubebuilder:validation:Required
+	CertificateTemplateName string `json:"certificateTemplateName"`
 
 	// A reference to a Secret in the same namespace as the referent. If the
 	// referent is a ClusterIssuer, the reference instead refers to the resource
