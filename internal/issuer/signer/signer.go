@@ -25,30 +25,30 @@ type SignerBuilder func(*v1alpha1.IssuerSpec, map[string][]byte) (Signer, error)
 
 func HealthCheckerFromIssuerAndSecretData(spec *v1alpha1.IssuerSpec, secretData map[string][]byte) (HealthChecker, error) {
 	return &signer{
-		siteUrl:               spec.URL,
-		caId:                  spec.CaId,
-		clientId:              spec.Authentication.UniversalAuth.ClientId,
-		certificateTemplateId: spec.CertificateTemplateId,
-		clientSecret:          string(secretData["clientSecret"]),
+		siteUrl:                 spec.URL,
+		projectId:               spec.ProjectID,
+		certificateTemplateName: spec.CertificateTemplateName,
+		clientId:                spec.Authentication.UniversalAuth.ClientId,
+		clientSecret:            string(secretData["clientSecret"]),
 	}, nil
 }
 
 func SignerFromIssuerAndSecretData(spec *v1alpha1.IssuerSpec, secretData map[string][]byte) (Signer, error) {
 	return &signer{
-		siteUrl:               spec.URL,
-		caId:                  spec.CaId,
-		certificateTemplateId: spec.CertificateTemplateId,
-		clientId:              spec.Authentication.UniversalAuth.ClientId,
-		clientSecret:          string(secretData["clientSecret"]),
+		siteUrl:                 spec.URL,
+		projectId:               spec.ProjectID,
+		certificateTemplateName: spec.CertificateTemplateName,
+		clientId:                spec.Authentication.UniversalAuth.ClientId,
+		clientSecret:            string(secretData["clientSecret"]),
 	}, nil
 }
 
 type signer struct {
-	siteUrl               string
-	caId                  string
-	certificateTemplateId string
-	clientId              string
-	clientSecret          string
+	siteUrl                 string
+	projectId               string
+	certificateTemplateName string
+	clientId                string
+	clientSecret            string
 }
 
 func (o *signer) Check() error {
@@ -84,10 +84,10 @@ type AuthResponse struct {
 }
 
 type SignCertificateRequest struct {
-	CaId                  string `json:"caId,omitempty"`
-	CertificateTemplateId string `json:"certificateTemplateId,omitempty"`
-	Csr                   string `json:"csr"`
-	Ttl                   string `json:"ttl,omitempty"`
+	ProjectId               string `json:"projectId,omitempty"`
+	CertificateTemplateName string `json:"certificateTemplateName,omitempty"`
+	Csr                     string `json:"csr"`
+	Ttl                     string `json:"ttl,omitempty"`
 }
 
 type SignCertificateResponse struct {
@@ -98,12 +98,6 @@ type SignCertificateResponse struct {
 }
 
 func (o *signer) Sign(cr certmanager.CertificateRequest) ([]byte, []byte, error) {
-
-	// Ensure either caId or certificateTemplateId is provided
-	if o.caId == "" && o.certificateTemplateId == "" {
-		return nil, nil, fmt.Errorf("Either caId or certificateTemplateId must be provided")
-	}
-
 	csrBytes := cr.Spec.Request
 	// csr, err := parseCSR(csrBytes)
 	// if err != nil {
@@ -116,7 +110,7 @@ func (o *signer) Sign(cr certmanager.CertificateRequest) ([]byte, []byte, error)
 	signCertificateResponse := SignCertificateResponse{}
 
 	// Login operation against Infisical
-	_, err := client.R().
+	res, err := client.R().
 		SetHeader("Content-Type", "application/x-www-form-urlencoded").
 		SetFormData(map[string]string{
 			"clientId":     o.clientId,
@@ -129,18 +123,16 @@ func (o *signer) Sign(cr certmanager.CertificateRequest) ([]byte, []byte, error)
 	if err != nil {
 		return nil, nil, err
 	}
+	if res.IsError() {
+		return nil, nil, fmt.Errorf("%s", res.String())
+	}
 
 	// Define the request body based on your CSR
 	requestBody := SignCertificateRequest{
-		Csr: string(csrBytes), // Required
-		Ttl: "90d",            // Default ttl
-	}
-
-	if o.caId != "" {
-		requestBody.CaId = o.caId
-	}
-	if o.certificateTemplateId != "" {
-		requestBody.CertificateTemplateId = o.certificateTemplateId
+		Csr:                     string(csrBytes), // Required
+		Ttl:                     "90d",            // Default ttl,
+		ProjectId:               o.projectId,
+		CertificateTemplateName: o.certificateTemplateName,
 	}
 
 	if cr.Spec.Duration != nil {
@@ -148,14 +140,22 @@ func (o *signer) Sign(cr certmanager.CertificateRequest) ([]byte, []byte, error)
 	}
 
 	// Make the POST request with Bearer token authentication and JSON body
-	_, err = client.R().
+	res, err = client.R().
 		SetHeader("Content-Type", "application/json").
 		SetHeader("Authorization", "Bearer "+authResponse.AccessToken).
 		SetBody(requestBody).
 		SetResult(&signCertificateResponse).
-		Post(o.siteUrl + "/api/v1/pki/certificates/sign-certificate")
+		Post(o.siteUrl + "/api/v2/pki/certificate-templates/" + o.certificateTemplateName + "/sign-certificate")
 
-	certificate := signCertificateResponse.Certificate // Leaf certificate
+	// Check for errors
+	if err != nil {
+		return nil, nil, err
+	}
+	if res.IsError() {
+		return nil, nil, fmt.Errorf("%s", res.String())
+	}
+
+	certificate := signCertificateResponse.Certificate   // Leaf certificate
 	chainPem := signCertificateResponse.CertificateChain // Full chain (intermediate certs + root cert)
 
 	caChainCerts, rootCACert, err := splitRootCACertificate([]byte(chainPem))
