@@ -74,9 +74,9 @@ spec:
                 required:
                 - universalAuth
                 type: object
-              caId:
+              certificateTemplateName:
                 type: string
-              certificateTemplateId:
+              projectId:
                 type: string
               url:
                 description: |-
@@ -85,6 +85,8 @@ spec:
                 type: string
             required:
             - authentication
+            - certificateTemplateName
+            - projectId
             - url
             type: object
           status:
@@ -202,9 +204,9 @@ spec:
                 required:
                 - universalAuth
                 type: object
-              caId:
+              certificateTemplateName:
                 type: string
-              certificateTemplateId:
+              projectId:
                 type: string
               url:
                 description: |-
@@ -213,6 +215,8 @@ spec:
                 type: string
             required:
             - authentication
+            - certificateTemplateName
+            - projectId
             - url
             type: object
           status:
