@@ -198,6 +198,13 @@ deploy: ${INSTALL_YAML}  ## Deploy controller to the K8s cluster specified in ~/
 undeploy: ${INSTALL_YAML} ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	 kubectl delete -f ${INSTALL_YAML}  --ignore-not-found=$(ignore-not-found)
 
+##@ Helm Chart
+
+.PHONY: helm-chart
+helm-chart: manifests kustomize helmify ## Generate Helm chart
+	mkdir -p helm-charts/infisical-pki-issuer
+	$(KUSTOMIZE) build config/default | $(HELMIFY) helm-charts/infisical-pki-issuer
+
 ##@ Build Dependencies
 
 LOCAL_OS := $(shell go env GOOS)
@@ -213,6 +220,7 @@ KUSTOMIZE ?= $(LOCALBIN)/kustomize
 CONTROLLER_GEN ?= $(LOCALBIN)/controller-gen
 ENVTEST ?= $(LOCALBIN)/setup-envtest
 KIND ?= $(LOCALBIN)/kind
+HELMIFY ?= $(LOCALBIN)/helmify
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v3.8.7
@@ -249,3 +257,8 @@ $(ENVTEST): $(LOCALBIN)
 kind: $(LOCALBIN) ## Download Kind locally if necessary.
 	curl -fsSL -o ${KIND} https://github.com/kubernetes-sigs/kind/releases/download/v${KIND_VERSION}/kind-${LOCAL_OS}-${LOCAL_ARCH}
 	chmod +x ${KIND}
+
+.PHONY: helmify
+helmify: $(HELMIFY) ## Download helmify locally if necessary.
+$(HELMIFY): $(LOCALBIN)
+	test -s $(LOCALBIN)/helmify || GOBIN=$(LOCALBIN) go install github.com/arttor/helmify/cmd/helmify@latest

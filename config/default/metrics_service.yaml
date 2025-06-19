@@ -5,13 +5,13 @@ metadata:
     control-plane: controller-manager
     app.kubernetes.io/name: infisical-issuer
     app.kubernetes.io/managed-by: kustomize
-  name: controller-manager-metrics-service
+  name: controller-metrics
   namespace: system
 spec:
   ports:
-  - name: https
-    port: 8443
-    protocol: TCP
-    targetPort: 8443
+    - name: https
+      port: 8443
+      protocol: TCP
+      targetPort: 8443
   selector:
     control-plane: controller-manager
