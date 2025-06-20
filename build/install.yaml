@@ -553,7 +553,7 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: infisical-issuer
     control-plane: controller-manager
-  name: infisical-issuer-controller-manager-metrics-service
+  name: infisical-issuer-metrics
   namespace: infisical-issuer-system
 spec:
   ports:

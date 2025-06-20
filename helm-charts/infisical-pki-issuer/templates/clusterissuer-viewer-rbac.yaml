@@ -1,0 +1,21 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "infisical-pki-issuer.fullname" . }}-clusterissuer-viewer-role
+  labels:
+  {{- include "infisical-pki-issuer.labels" . | nindent 4 }}
+rules:
+- apiGroups:
+  - infisical-issuer.infisical.com
+  resources:
+  - clusterissuers
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - infisical-issuer.infisical.com
+  resources:
+  - clusterissuers/status
+  verbs:
+  - get

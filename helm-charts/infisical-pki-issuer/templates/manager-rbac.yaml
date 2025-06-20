@@ -1,0 +1,71 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "infisical-pki-issuer.fullname" . }}-manager-role
+  labels:
+  {{- include "infisical-pki-issuer.labels" . | nindent 4 }}
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - cert-manager.io
+  resources:
+  - certificaterequests
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - cert-manager.io
+  resources:
+  - certificaterequests/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - infisical-issuer.infisical.com
+  resources:
+  - clusterissuers
+  - issuers
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - infisical-issuer.infisical.com
+  resources:
+  - clusterissuers/status
+  - issuers/status
+  verbs:
+  - get
+  - patch
+  - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "infisical-pki-issuer.fullname" . }}-manager-rolebinding
+  labels:
+  {{- include "infisical-pki-issuer.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: '{{ include "infisical-pki-issuer.fullname" . }}-manager-role'
+subjects:
+- kind: ServiceAccount
+  name: '{{ include "infisical-pki-issuer.fullname" . }}-controller-manager'
+  namespace: '{{ .Release.Namespace }}'
