@@ -179,6 +179,7 @@ spec:
                 type: object
               url:
                 description: URL is the base URL of the Infisical instance, e.g. "https://app.infisical.com".
+                pattern: ^https?://.+
                 type: string
             required:
             - application

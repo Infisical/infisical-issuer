@@ -97,6 +97,7 @@ type TLSConfig struct {
 type IssuerSpec struct {
 	// URL is the base URL of the Infisical instance, e.g. "https://app.infisical.com".
 	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Pattern=`^https?://.+`
 	URL string `json:"url"`
 
 	// TLS optionally configures a custom CA certificate for verifying a self-hosted

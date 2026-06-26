@@ -246,8 +246,9 @@ func (s *signer) poll(ctx context.Context, rest *resty.Client, requestID string)
 	var out pollResponse
 	res, err := rest.R().
 		SetContext(ctx).
+		SetPathParam("requestID", requestID).
 		SetResult(&out).
-		Get("/api/v1/cert-manager/certificates/certificate-requests/" + requestID)
+		Get("/api/v1/cert-manager/certificates/certificate-requests/{requestID}")
 	if err != nil {
 		return SignResult{}, err
 	}
@@ -280,8 +281,9 @@ func (s *signer) bundle(ctx context.Context, rest *resty.Client, certificateID s
 	var out bundleResponse
 	res, err := rest.R().
 		SetContext(ctx).
+		SetPathParam("certificateID", certificateID).
 		SetResult(&out).
-		Get("/api/v1/cert-manager/certificates/" + certificateID + "/bundle")
+		Get("/api/v1/cert-manager/certificates/{certificateID}/bundle")
 	if err != nil {
 		return SignResult{}, err
 	}
