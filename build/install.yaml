@@ -45,91 +45,219 @@ spec:
           metadata:
             type: object
           spec:
-            description: IssuerSpec defines the desired state of Issuer
+            description: IssuerSpec defines the desired state of an Issuer or ClusterIssuer.
             properties:
+              application:
+                description: Application is the name of the Infisical PKI Application
+                  to issue through.
+                type: string
               authentication:
+                description: Authentication selects and configures the Machine Identity
+                  auth method.
                 properties:
-                  universalAuth:
+                  kubernetes:
+                    description: Kubernetes holds the configuration for Kubernetes
+                      Auth. Required when method is "kubernetes".
                     properties:
-                      clientId:
-                        description: The Client ID for Universal Auth
-                        type: string
-                      secretRef:
-                        description: The secret containing Client Secret for Universal Auth
+                      identityIdRef:
+                        description: IdentityIDRef references the Secret key holding
+                          the Machine Identity ID.
                         properties:
                           key:
-                            description: The key in the secret to use
+                            description: Key within the Secret that holds the value.
                             type: string
                           name:
-                            description: The name of the Kubernetes Secret
+                            description: Name of the Kubernetes Secret.
+                            type: string
+                          namespace:
+                            description: Namespace of the Kubernetes Secret.
                             type: string
                         required:
                         - key
                         - name
+                        - namespace
+                        type: object
+                      serviceAccountRef:
+                        description: ServiceAccountRef is the service account whose
+                          token the issuer presents to Infisical.
+                        properties:
+                          name:
+                            type: string
+                          namespace:
+                            type: string
+                        required:
+                        - name
+                        - namespace
+                        type: object
+                      serviceAccountTokenAudiences:
+                        description: ServiceAccountTokenAudiences are optional custom
+                          audiences for the minted token.
+                        items:
+                          type: string
+                        type: array
+                    required:
+                    - identityIdRef
+                    - serviceAccountRef
+                    type: object
+                  method:
+                    description: Method selects the authentication method. One of
+                      "universal" or "kubernetes".
+                    enum:
+                    - universal
+                    - kubernetes
+                    type: string
+                  universal:
+                    description: Universal holds the configuration for Universal Auth.
+                      Required when method is "universal".
+                    properties:
+                      clientIdRef:
+                        description: ClientIDRef references the Secret key holding
+                          the Machine Identity client ID.
+                        properties:
+                          key:
+                            description: Key within the Secret that holds the value.
+                            type: string
+                          name:
+                            description: Name of the Kubernetes Secret.
+                            type: string
+                          namespace:
+                            description: Namespace of the Kubernetes Secret.
+                            type: string
+                        required:
+                        - key
+                        - name
+                        - namespace
+                        type: object
+                      clientSecretRef:
+                        description: ClientSecretRef references the Secret key holding
+                          the Machine Identity client secret.
+                        properties:
+                          key:
+                            description: Key within the Secret that holds the value.
+                            type: string
+                          name:
+                            description: Name of the Kubernetes Secret.
+                            type: string
+                          namespace:
+                            description: Namespace of the Kubernetes Secret.
+                            type: string
+                        required:
+                        - key
+                        - name
+                        - namespace
                         type: object
                     required:
-                    - clientId
-                    - secretRef
+                    - clientIdRef
+                    - clientSecretRef
                     type: object
                 required:
-                - universalAuth
+                - method
                 type: object
-              certificateTemplateName:
+              profile:
+                description: Profile is the name of the Certificate Profile to issue
+                  with.
                 type: string
-              projectId:
-                type: string
-              url:
+              tls:
                 description: |-
-                  URL is the base URL of the instance of Infisical,
-                  for example: "https://app.infisical.com".
+                  TLS optionally configures a custom CA certificate for verifying a self-hosted
+                  Infisical instance. If omitted, the system trust store is used.
+                properties:
+                  caCertificate:
+                    description: |-
+                      CACertificate references a Secret key holding a PEM CA certificate used to verify
+                      the connection to a self-hosted Infisical.
+                    properties:
+                      key:
+                        description: Key within the Secret that holds the value.
+                        type: string
+                      name:
+                        description: Name of the Kubernetes Secret.
+                        type: string
+                      namespace:
+                        description: Namespace of the Kubernetes Secret.
+                        type: string
+                    required:
+                    - key
+                    - name
+                    - namespace
+                    type: object
+                required:
+                - caCertificate
+                type: object
+              url:
+                description: URL is the base URL of the Infisical instance, e.g. "https://app.infisical.com".
+                pattern: ^https?://.+
                 type: string
             required:
+            - application
             - authentication
-            - certificateTemplateName
-            - projectId
+            - profile
             - url
             type: object
           status:
             description: IssuerStatus defines the observed state of Issuer
             properties:
               conditions:
-                description: |-
-                  List of status conditions to indicate the status of a CertificateRequest.
-                  Known condition types are `Ready`.
+                description: Conditions indicate the status of the Issuer. The known
+                  condition type is `Ready`.
                 items:
-                  description: IssuerCondition contains condition information for an Issuer.
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
                   properties:
                     lastTransitionTime:
                       description: |-
-                        LastTransitionTime is the timestamp corresponding to the last status
-                        change of this condition.
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
                       format: date-time
                       type: string
                     message:
                       description: |-
-                        Message is a human readable description of the details of the last
-                        transition, complementing reason.
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
                       type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
                     reason:
                       description: |-
-                        Reason is a brief machine readable explanation for the condition's last
-                        transition.
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
                       type: string
                     status:
-                      description: Status of the condition, one of ('True', 'False', 'Unknown').
+                      description: status of the condition, one of True, False, Unknown.
                       enum:
                       - "True"
                       - "False"
                       - Unknown
                       type: string
                     type:
-                      description: Type of the condition, known values are ('Ready').
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
                       type: string
                   required:
+                  - lastTransitionTime
+                  - message
+                  - reason
                   - status
                   - type
                   type: object
                 type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
             type: object
         type: object
     served: true
@@ -175,91 +303,219 @@ spec:
           metadata:
             type: object
           spec:
-            description: IssuerSpec defines the desired state of Issuer
+            description: IssuerSpec defines the desired state of an Issuer or ClusterIssuer.
             properties:
+              application:
+                description: Application is the name of the Infisical PKI Application
+                  to issue through.
+                type: string
               authentication:
+                description: Authentication selects and configures the Machine Identity
+                  auth method.
                 properties:
-                  universalAuth:
+                  kubernetes:
+                    description: Kubernetes holds the configuration for Kubernetes
+                      Auth. Required when method is "kubernetes".
                     properties:
-                      clientId:
-                        description: The Client ID for Universal Auth
-                        type: string
-                      secretRef:
-                        description: The secret containing Client Secret for Universal Auth
+                      identityIdRef:
+                        description: IdentityIDRef references the Secret key holding
+                          the Machine Identity ID.
                         properties:
                           key:
-                            description: The key in the secret to use
+                            description: Key within the Secret that holds the value.
                             type: string
                           name:
-                            description: The name of the Kubernetes Secret
+                            description: Name of the Kubernetes Secret.
+                            type: string
+                          namespace:
+                            description: Namespace of the Kubernetes Secret.
                             type: string
                         required:
                         - key
                         - name
+                        - namespace
+                        type: object
+                      serviceAccountRef:
+                        description: ServiceAccountRef is the service account whose
+                          token the issuer presents to Infisical.
+                        properties:
+                          name:
+                            type: string
+                          namespace:
+                            type: string
+                        required:
+                        - name
+                        - namespace
+                        type: object
+                      serviceAccountTokenAudiences:
+                        description: ServiceAccountTokenAudiences are optional custom
+                          audiences for the minted token.
+                        items:
+                          type: string
+                        type: array
+                    required:
+                    - identityIdRef
+                    - serviceAccountRef
+                    type: object
+                  method:
+                    description: Method selects the authentication method. One of
+                      "universal" or "kubernetes".
+                    enum:
+                    - universal
+                    - kubernetes
+                    type: string
+                  universal:
+                    description: Universal holds the configuration for Universal Auth.
+                      Required when method is "universal".
+                    properties:
+                      clientIdRef:
+                        description: ClientIDRef references the Secret key holding
+                          the Machine Identity client ID.
+                        properties:
+                          key:
+                            description: Key within the Secret that holds the value.
+                            type: string
+                          name:
+                            description: Name of the Kubernetes Secret.
+                            type: string
+                          namespace:
+                            description: Namespace of the Kubernetes Secret.
+                            type: string
+                        required:
+                        - key
+                        - name
+                        - namespace
+                        type: object
+                      clientSecretRef:
+                        description: ClientSecretRef references the Secret key holding
+                          the Machine Identity client secret.
+                        properties:
+                          key:
+                            description: Key within the Secret that holds the value.
+                            type: string
+                          name:
+                            description: Name of the Kubernetes Secret.
+                            type: string
+                          namespace:
+                            description: Namespace of the Kubernetes Secret.
+                            type: string
+                        required:
+                        - key
+                        - name
+                        - namespace
                         type: object
                     required:
-                    - clientId
-                    - secretRef
+                    - clientIdRef
+                    - clientSecretRef
                     type: object
                 required:
-                - universalAuth
+                - method
                 type: object
-              certificateTemplateName:
+              profile:
+                description: Profile is the name of the Certificate Profile to issue
+                  with.
                 type: string
-              projectId:
-                type: string
-              url:
+              tls:
                 description: |-
-                  URL is the base URL of the instance of Infisical,
-                  for example: "https://app.infisical.com".
+                  TLS optionally configures a custom CA certificate for verifying a self-hosted
+                  Infisical instance. If omitted, the system trust store is used.
+                properties:
+                  caCertificate:
+                    description: |-
+                      CACertificate references a Secret key holding a PEM CA certificate used to verify
+                      the connection to a self-hosted Infisical.
+                    properties:
+                      key:
+                        description: Key within the Secret that holds the value.
+                        type: string
+                      name:
+                        description: Name of the Kubernetes Secret.
+                        type: string
+                      namespace:
+                        description: Namespace of the Kubernetes Secret.
+                        type: string
+                    required:
+                    - key
+                    - name
+                    - namespace
+                    type: object
+                required:
+                - caCertificate
+                type: object
+              url:
+                description: URL is the base URL of the Infisical instance, e.g. "https://app.infisical.com".
+                pattern: ^https?://.+
                 type: string
             required:
+            - application
             - authentication
-            - certificateTemplateName
-            - projectId
+            - profile
             - url
             type: object
           status:
             description: IssuerStatus defines the observed state of Issuer
             properties:
               conditions:
-                description: |-
-                  List of status conditions to indicate the status of a CertificateRequest.
-                  Known condition types are `Ready`.
+                description: Conditions indicate the status of the Issuer. The known
+                  condition type is `Ready`.
                 items:
-                  description: IssuerCondition contains condition information for an Issuer.
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
                   properties:
                     lastTransitionTime:
                       description: |-
-                        LastTransitionTime is the timestamp corresponding to the last status
-                        change of this condition.
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
                       format: date-time
                       type: string
                     message:
                       description: |-
-                        Message is a human readable description of the details of the last
-                        transition, complementing reason.
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
                       type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
                     reason:
                       description: |-
-                        Reason is a brief machine readable explanation for the condition's last
-                        transition.
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
                       type: string
                     status:
-                      description: Status of the condition, one of ('True', 'False', 'Unknown').
+                      description: status of the condition, one of True, False, Unknown.
                       enum:
                       - "True"
                       - "False"
                       - Unknown
                       type: string
                     type:
-                      description: Type of the condition, known values are ('Ready').
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
                       type: string
                   required:
+                  - lastTransitionTime
+                  - message
+                  - reason
                   - status
                   - type
                   type: object
                 type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
             type: object
         type: object
     served: true
@@ -438,12 +694,20 @@ rules:
   - list
   - watch
 - apiGroups:
+  - ""
+  resources:
+  - serviceaccounts/token
+  verbs:
+  - create
+- apiGroups:
   - cert-manager.io
   resources:
   - certificaterequests
   verbs:
   - get
   - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - cert-manager.io
@@ -553,7 +817,7 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: infisical-issuer
     control-plane: controller-manager
-  name: infisical-issuer-metrics
+  name: infisical-issuer-controller-metrics
   namespace: infisical-issuer-system
 spec:
   ports:
@@ -592,7 +856,7 @@ spec:
         - --health-probe-bind-address=:8081
         command:
         - /manager
-        image: docker.io/infisical/pki-issuer:v0.2.0
+        image: docker.io/infisical/pki-issuer:latest
         livenessProbe:
           httpGet:
             path: /healthz

@@ -2,8 +2,30 @@
   <img width="300" src="/resources/logo.svg#gh-dark-mode-only" alt="infisical">
 </h1>
 <p align="center">
-  <p align="center"><b>The open-source secret management platform</b>: Sync secrets/configs across your team/infrastructure and prevent secret leaks.</p>
+  <p align="center"><b>Infisical PKI Issuer</b>: a cert-manager external issuer that issues X.509 certificates from Infisical PKI.</p>
 </p>
+
+<h4 align="center">
+  |
+  <a href="https://infisical.com/docs/documentation/platform/pki/overview">Documentation</a>
+  |
+  <a href="https://www.infisical.com">Website</a>
+  |
+  <a href="https://infisical.com/slack">Slack</a>
+  |
+</h4>
+
+<h4 align="center">
+  <a href="https://github.com/infisical/infisical/blob/main/CONTRIBUTING.md">
+    <img src="https://img.shields.io/badge/PRs-Welcome-brightgreen" alt="PRs welcome!" />
+  </a>
+  <a href="https://infisical.com/slack">
+    <img src="https://img.shields.io/badge/chat-on%20Slack-blueviolet" alt="Slack community channel" />
+  </a>
+  <a href="https://twitter.com/infisical">
+    <img src="https://img.shields.io/twitter/follow/infisical?label=Follow" alt="Infisical Twitter" />
+  </a>
+</h4>
 
 ## Introduction
 
@@ -13,7 +35,7 @@
 
 Infisical PKI Issuer is an addon (see https://cert-manager.io/docs/configuration/external/) to cert-manager that signs off certificate requests using Infisical PKI. The issuer is perfect for getting X.509 certificates for ingresses and other Kubernetes resources and capable of automatically renewing certificates as needed.
 
-For information on how to use the issuer, please refer to the Infisical PKI Issuer documentation here.
+For information on how to use the issuer, please refer to the [Infisical PKI documentation](https://infisical.com/docs/documentation/platform/pki/overview).
 
 ## Security
 

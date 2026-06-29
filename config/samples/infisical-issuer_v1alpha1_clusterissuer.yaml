@@ -1,14 +1,23 @@
+# Example ClusterIssuer using Kubernetes Auth.
+# The issuer mints a short-lived token for the referenced service account and
+# presents it to Infisical. The machine identity ID is read from a Secret.
 apiVersion: infisical-issuer.infisical.com/v1alpha1
 kind: ClusterIssuer
 metadata:
   name: clusterissuer-infisical
 spec:
-  url: ""
-  # caId: "bed79ed9-4b55-4cd2-aa0c-b944497e5182"
-  certificateTemplateId: "e1ab4937-4c66-40c2-9f04-4ee6abae2efc"
+  url: "https://app.infisical.com"
+  application: "istio-workloads"
+  profile: "mesh-mtls"
   authentication:
-    universalAuth:
-      clientId: "d6957e18-2cf1-440b-987f-aa0afd9f0744"
-      secretRef:
-        name: "clusterissuer-infisical-client-secret"
-        key: "clientSecret"
+    method: kubernetes
+    kubernetes:
+      identityIdRef:
+        name: "infisical-identity"
+        namespace: "infisical-issuer"
+        key: "identityId"
+      serviceAccountRef:
+        name: "infisical-issuer-auth"
+        namespace: "infisical-issuer"
+      serviceAccountTokenAudiences:
+        - "infisical"

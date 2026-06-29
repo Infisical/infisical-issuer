@@ -1,29 +1,16 @@
-/*
-Copyright 2024 Infisical.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
 package controller
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	cmutil "github.com/cert-manager/cert-manager/pkg/api/util"
 
-	sampleissuerapi "github.com/Infisical/infisical-issuer/api/v1alpha1"
+	issuerapi "github.com/Infisical/infisical-issuer/api/v1alpha1"
+	"github.com/Infisical/infisical-issuer/internal/auth"
+	"github.com/Infisical/infisical-issuer/internal/cache"
 	"github.com/Infisical/infisical-issuer/internal/issuer/signer"
 	issuerutil "github.com/Infisical/infisical-issuer/internal/issuer/util"
 	cmapi "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
@@ -47,11 +34,22 @@ var (
 	errSignerSign     = errors.New("failed to sign")
 )
 
-// CertificateRequestReconciler reconciles a CertificateRequest object
+const (
+	// requestIDAnnotation holds the in-flight Infisical request id so an async
+	// issuance is polled instead of re-created.
+	requestIDAnnotation = "infisical-issuer.infisical.com/certificate-request-id"
+
+	pendingRequeueInterval = 30 * time.Second
+)
+
 type CertificateRequestReconciler struct {
 	client.Client
-	Scheme                   *runtime.Scheme
-	SignerBuilder            signer.SignerBuilder
+	Scheme        *runtime.Scheme
+	SignerBuilder signer.Builder
+	AuthResolver  *auth.Resolver
+
+	// ClusterResourceNamespace is where a ClusterIssuer's credentials resolve;
+	// ignored for the namespaced Issuer kind.
 	ClusterResourceNamespace string
 
 	Clock                  clock.Clock
@@ -59,76 +57,53 @@ type CertificateRequestReconciler struct {
 	recorder               record.EventRecorder
 }
 
-// +kubebuilder:rbac:groups=cert-manager.io,resources=certificaterequests,verbs=get;list;watch
+// +kubebuilder:rbac:groups=cert-manager.io,resources=certificaterequests,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=cert-manager.io,resources=certificaterequests/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
+// +kubebuilder:rbac:groups="",resources=serviceaccounts/token,verbs=create
 
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the Issuer object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.19.0/pkg/reconcile
 func (r *CertificateRequestReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, err error) {
 	log := ctrl.LoggerFrom(ctx)
 
-	// Get the CertificateRequest
 	var certificateRequest cmapi.CertificateRequest
 	if err := r.Get(ctx, req.NamespacedName, &certificateRequest); err != nil {
 		if err := client.IgnoreNotFound(err); err != nil {
-			return ctrl.Result{}, fmt.Errorf("unexpected get error: %v", err)
+			return ctrl.Result{}, fmt.Errorf("unexpected get error: %w", err)
 		}
 		log.Info("Not found. Ignoring.")
 		return ctrl.Result{}, nil
 	}
 
-	// Ignore CertificateRequest if issuerRef doesn't match our group
-	if certificateRequest.Spec.IssuerRef.Group != sampleissuerapi.GroupVersion.Group {
-		log.Info("Foreign group. Ignoring.", "group", certificateRequest.Spec.IssuerRef.Group, "expectedGroup", sampleissuerapi.GroupVersion.Group)
+	if certificateRequest.Spec.IssuerRef.Group != issuerapi.GroupVersion.Group {
+		log.Info("Foreign group. Ignoring.", "group", certificateRequest.Spec.IssuerRef.Group, "expectedGroup", issuerapi.GroupVersion.Group)
 		return ctrl.Result{}, nil
 	}
 
-	// Ignore CertificateRequest if it is already Ready
-	if cmutil.CertificateRequestHasCondition(&certificateRequest, cmapi.CertificateRequestCondition{
-		Type:   cmapi.CertificateRequestConditionReady,
-		Status: cmmeta.ConditionTrue,
-	}) {
-		log.Info("CertificateRequest is Ready. Ignoring.")
-		return ctrl.Result{}, nil
-	}
-	// Ignore CertificateRequest if it is already Failed
-	if cmutil.CertificateRequestHasCondition(&certificateRequest, cmapi.CertificateRequestCondition{
-		Type:   cmapi.CertificateRequestConditionReady,
-		Status: cmmeta.ConditionFalse,
-		Reason: cmapi.CertificateRequestReasonFailed,
-	}) {
-		log.Info("CertificateRequest is Failed. Ignoring.")
-		return ctrl.Result{}, nil
-	}
-	// Ignore CertificateRequest if it already has a Denied Ready Reason
-	if cmutil.CertificateRequestHasCondition(&certificateRequest, cmapi.CertificateRequestCondition{
-		Type:   cmapi.CertificateRequestConditionReady,
-		Status: cmmeta.ConditionFalse,
-		Reason: cmapi.CertificateRequestReasonDenied,
-	}) {
-		log.Info("CertificateRequest already has a Ready condition with Denied Reason. Ignoring.")
+	if msg, ok := alreadyResolved(&certificateRequest); ok {
+		log.Info(msg)
 		return ctrl.Result{}, nil
 	}
 
-	if r.CheckApprovedCondition {
-		// If CertificateRequest has not been approved, exit early.
-		if !cmutil.CertificateRequestIsApproved(&certificateRequest) {
-			log.Info("CertificateRequest has not been approved yet. Ignoring.")
-			return ctrl.Result{}, nil
+	// A denied CertificateRequest is terminal. Handle it before the approval
+	// gate below, otherwise a denial would be ignored as merely "not approved".
+	if cmutil.CertificateRequestIsDenied(&certificateRequest) {
+		log.Info("CertificateRequest has been denied. Marking as failed.")
+		if certificateRequest.Status.FailureTime == nil {
+			nowTime := metav1.NewTime(r.Clock.Now())
+			certificateRequest.Status.FailureTime = &nowTime
 		}
+		message := "The CertificateRequest was denied by an approval controller"
+		r.recorder.Event(&certificateRequest, corev1.EventTypeNormal, issuerapi.EventReasonCertificateRequestReconciler, message)
+		cmutil.SetCertificateRequestCondition(&certificateRequest, cmapi.CertificateRequestConditionReady, cmmeta.ConditionFalse, cmapi.CertificateRequestReasonDenied, message)
+		return ctrl.Result{}, r.Status().Update(ctx, &certificateRequest)
 	}
 
-	// report gives feedback by updating the Ready Condition of the Certificate Request.
-	// For added visibility we also log a message and create a Kubernetes Event.
+	if r.CheckApprovedCondition && !cmutil.CertificateRequestIsApproved(&certificateRequest) {
+		log.Info("CertificateRequest has not been approved yet. Ignoring.")
+		return ctrl.Result{}, nil
+	}
+
 	report := func(reason, message string, err error) {
 		status := cmmeta.ConditionFalse
 		if reason == cmapi.CertificateRequestReasonIssued {
@@ -145,7 +120,7 @@ func (r *CertificateRequestReconciler) Reconcile(ctx context.Context, req ctrl.R
 		r.recorder.Event(
 			&certificateRequest,
 			eventType,
-			sampleissuerapi.EventReasonCertificateRequestReconciler,
+			issuerapi.EventReasonCertificateRequestReconciler,
 			message,
 		)
 		cmutil.SetCertificateRequestCondition(
@@ -157,7 +132,6 @@ func (r *CertificateRequestReconciler) Reconcile(ctx context.Context, req ctrl.R
 		)
 	}
 
-	// Always attempt to update the Ready condition
 	defer func() {
 		if err != nil {
 			report(cmapi.CertificateRequestReasonPending, "Temporary error. Retrying", err)
@@ -168,32 +142,15 @@ func (r *CertificateRequestReconciler) Reconcile(ctx context.Context, req ctrl.R
 		}
 	}()
 
-	// If CertificateRequest has been denied, mark the CertificateRequest as
-	// Ready=Denied and set FailureTime if not already.
-	if cmutil.CertificateRequestIsDenied(&certificateRequest) {
-		log.Info("CertificateRequest has been denied yet. Marking as failed.")
-
-		if certificateRequest.Status.FailureTime == nil {
-			nowTime := metav1.NewTime(r.Clock.Now())
-			certificateRequest.Status.FailureTime = &nowTime
-		}
-
-		message := "The CertificateRequest was denied by an approval controller"
-		report(cmapi.CertificateRequestReasonDenied, message, nil)
-		return ctrl.Result{}, nil
-	}
-
-	// Add a Ready condition if one does not already exist
 	if ready := cmutil.GetCertificateRequestCondition(&certificateRequest, cmapi.CertificateRequestConditionReady); ready == nil {
 		report(cmapi.CertificateRequestReasonPending, "Initialising Ready condition", nil)
 		return ctrl.Result{}, nil
 	}
 
-	// Ignore but log an error if the issuerRef.Kind is unrecognised
-	issuerGVK := sampleissuerapi.GroupVersion.WithKind(certificateRequest.Spec.IssuerRef.Kind)
+	issuerGVK := issuerapi.GroupVersion.WithKind(certificateRequest.Spec.IssuerRef.Kind)
 	issuerRO, err := r.Scheme.New(issuerGVK)
 	if err != nil {
-		report(cmapi.CertificateRequestReasonFailed, "Unrecognised kind. Ignoring", fmt.Errorf("%w: %v", errIssuerRef, err))
+		report(cmapi.CertificateRequestReasonFailed, "Unrecognised kind. Ignoring", fmt.Errorf("%w: %w", errIssuerRef, err))
 		return ctrl.Result{}, nil
 	}
 	issuer := issuerRO.(client.Object)
@@ -201,23 +158,24 @@ func (r *CertificateRequestReconciler) Reconcile(ctx context.Context, req ctrl.R
 	issuerName := types.NamespacedName{
 		Name: certificateRequest.Spec.IssuerRef.Name,
 	}
-	var secretNamespace string
+	// resourceNamespace is where the issuer's credentials resolve: the request's
+	// namespace for an Issuer, or ClusterResourceNamespace for a ClusterIssuer.
+	var resourceNamespace string
 	switch t := issuer.(type) {
-	case *sampleissuerapi.Issuer:
+	case *issuerapi.Issuer:
 		issuerName.Namespace = certificateRequest.Namespace
-		secretNamespace = certificateRequest.Namespace
+		resourceNamespace = certificateRequest.Namespace
 		log = log.WithValues("issuer", issuerName)
-	case *sampleissuerapi.ClusterIssuer:
-		secretNamespace = r.ClusterResourceNamespace
+	case *issuerapi.ClusterIssuer:
+		resourceNamespace = r.ClusterResourceNamespace
 		log = log.WithValues("clusterissuer", issuerName)
 	default:
 		report(cmapi.CertificateRequestReasonFailed, "The issuerRef referred to a registered Kind which is not yet handled. Ignoring", fmt.Errorf("unexpected issuer type: %v", t))
 		return ctrl.Result{}, nil
 	}
 
-	// Get the Issuer or ClusterIssuer
 	if err := r.Get(ctx, issuerName, issuer); err != nil {
-		return ctrl.Result{}, fmt.Errorf("%w: %v", errGetIssuer, err)
+		return ctrl.Result{}, fmt.Errorf("%w: %w", errGetIssuer, err)
 	}
 
 	issuerSpec, issuerStatus, err := issuerutil.GetSpecAndStatus(issuer)
@@ -231,36 +189,79 @@ func (r *CertificateRequestReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, errIssuerNotReady
 	}
 
-	secretName := types.NamespacedName{
-		Name:      issuerSpec.Authentication.UniversalAuth.SecretRef.Name,
-		Namespace: secretNamespace,
-	}
-
-	var secret corev1.Secret
-	if err := r.Get(ctx, secretName, &secret); err != nil {
-		return ctrl.Result{}, fmt.Errorf("%w, secret name: %s, reason: %v", errGetAuthSecret, secretName, err)
-	}
-
-	signer, err := r.SignerBuilder(issuerSpec, secret.Data)
+	cacheKey := cache.ClientCacheKey{Name: issuerName.Name, Namespace: issuerName.Namespace, Generation: issuer.GetGeneration()}
+	signerObj, err := r.SignerBuilder(r.Client, r.AuthResolver, issuerSpec, cacheKey, resourceNamespace)
 	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("%w: %v", errSignerBuilder, err)
+		return ctrl.Result{}, fmt.Errorf("%w: %w", errSignerBuilder, err)
 	}
 
-	pem, ca, err := signer.Sign(certificateRequest)
+	priorRequestID := certificateRequest.Annotations[requestIDAnnotation]
+	signResult, err := signerObj.Sign(ctx, certificateRequest, priorRequestID)
 	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("%w: %v", errSignerSign, err)
+		// A terminal failure (policy violation, rejected approval) will never
+		// succeed on retry, so fail the request instead of requeuing forever.
+		if signer.IsTerminal(err) {
+			if certificateRequest.Status.FailureTime == nil {
+				nowTime := metav1.NewTime(r.Clock.Now())
+				certificateRequest.Status.FailureTime = &nowTime
+			}
+			report(cmapi.CertificateRequestReasonFailed, "Infisical could not issue the certificate", err)
+			return ctrl.Result{}, nil
+		}
+		return ctrl.Result{}, fmt.Errorf("%w: %w", errSignerSign, err)
 	}
 
-	certificateRequest.Status.Certificate = pem
-	certificateRequest.Status.CA = ca
+	if signResult.Pending {
+		// Record the in-flight request id so the next reconcile polls it instead of
+		// creating a duplicate. A merge Patch (no resourceVersion precondition) avoids
+		// failing on concurrent status churn; a duplicate is still possible if the pod
+		// dies between create and patch, leaving a pending request an operator can deny.
+		if signResult.RequestID != "" && certificateRequest.Annotations[requestIDAnnotation] != signResult.RequestID {
+			base := certificateRequest.DeepCopy()
+			if certificateRequest.Annotations == nil {
+				certificateRequest.Annotations = map[string]string{}
+			}
+			certificateRequest.Annotations[requestIDAnnotation] = signResult.RequestID
+			if err := r.Patch(ctx, &certificateRequest, client.MergeFrom(base)); err != nil {
+				return ctrl.Result{}, fmt.Errorf("recording certificate request id: %w", err)
+			}
+		}
+		report(cmapi.CertificateRequestReasonPending, signResult.PendingMessage, nil)
+		return ctrl.Result{RequeueAfter: pendingRequeueInterval}, nil
+	}
+
+	certificateRequest.Status.Certificate = signResult.Certificate
+	certificateRequest.Status.CA = signResult.CA
 
 	report(cmapi.CertificateRequestReasonIssued, "Signed", nil)
 	return ctrl.Result{}, nil
 }
 
-// SetupWithManager sets up the controller with the Manager.
+func alreadyResolved(cr *cmapi.CertificateRequest) (string, bool) {
+	switch {
+	case cmutil.CertificateRequestHasCondition(cr, cmapi.CertificateRequestCondition{
+		Type:   cmapi.CertificateRequestConditionReady,
+		Status: cmmeta.ConditionTrue,
+	}):
+		return "CertificateRequest is Ready. Ignoring.", true
+	case cmutil.CertificateRequestHasCondition(cr, cmapi.CertificateRequestCondition{
+		Type:   cmapi.CertificateRequestConditionReady,
+		Status: cmmeta.ConditionFalse,
+		Reason: cmapi.CertificateRequestReasonFailed,
+	}):
+		return "CertificateRequest is Failed. Ignoring.", true
+	case cmutil.CertificateRequestHasCondition(cr, cmapi.CertificateRequestCondition{
+		Type:   cmapi.CertificateRequestConditionReady,
+		Status: cmmeta.ConditionFalse,
+		Reason: cmapi.CertificateRequestReasonDenied,
+	}):
+		return "CertificateRequest already has a Ready condition with Denied Reason. Ignoring.", true
+	}
+	return "", false
+}
+
 func (r *CertificateRequestReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	r.recorder = mgr.GetEventRecorderFor(sampleissuerapi.EventSource)
+	r.recorder = mgr.GetEventRecorderFor(issuerapi.EventSource)
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&cmapi.CertificateRequest{}).
 		Complete(r)

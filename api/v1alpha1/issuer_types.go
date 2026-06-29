@@ -1,89 +1,130 @@
-/*
-Copyright 2024 Infisical.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
 package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
+// NOTE: json tags are required. Any new fields you add must have json tags for the fields to be serialized.
 
-type Authentication struct {
-	UniversalAuth UniversalAuthDetails `json:"universalAuth"`
-}
-
-type UniversalAuthDetails struct {
-	// The Client ID for Universal Auth
-	// +kubebuilder:validation:Required
-	ClientId string `json:"clientId"`
-
-	// The secret containing Client Secret for Universal Auth
-	// +kubebuilder:validation:Required
-	SecretRef KubeSecretReference `json:"secretRef"`
-}
-
-type KubeSecretReference struct {
-	// The name of the Kubernetes Secret
+// SecretReference points at a single key inside a Kubernetes Secret.
+type SecretReference struct {
+	// Name of the Kubernetes Secret.
 	// +kubebuilder:validation:Required
 	Name string `json:"name"`
 
-	// The key in the secret to use
+	// Namespace of the Kubernetes Secret.
+	// +kubebuilder:validation:Required
+	Namespace string `json:"namespace"`
+
+	// Key within the Secret that holds the value.
 	// +kubebuilder:validation:Required
 	Key string `json:"key"`
 }
 
-// IssuerSpec defines the desired state of Issuer
-type IssuerSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+// NamespacedName references a namespaced Kubernetes object by name.
+type NamespacedName struct {
+	// +kubebuilder:validation:Required
+	Name string `json:"name"`
 
-	// URL is the base URL of the instance of Infisical,
-	// for example: "https://app.infisical.com".
+	// +kubebuilder:validation:Required
+	Namespace string `json:"namespace"`
+}
+
+// AuthMethod selects which Machine Identity authentication method the issuer uses.
+// +kubebuilder:validation:Enum=universal;kubernetes
+type AuthMethod string
+
+// Supported Machine Identity authentication methods.
+const (
+	AuthMethodUniversal  AuthMethod = "universal"
+	AuthMethodKubernetes AuthMethod = "kubernetes"
+)
+
+// Authentication defines how the issuer authenticates with Infisical. Set a
+// method and fill in the matching config block.
+type Authentication struct {
+	// Method selects the authentication method. One of "universal" or "kubernetes".
+	// +kubebuilder:validation:Required
+	Method AuthMethod `json:"method"`
+
+	// Universal holds the configuration for Universal Auth. Required when method is "universal".
+	// +optional
+	Universal *UniversalAuthConfig `json:"universal,omitempty"`
+
+	// Kubernetes holds the configuration for Kubernetes Auth. Required when method is "kubernetes".
+	// +optional
+	Kubernetes *KubernetesAuthConfig `json:"kubernetes,omitempty"`
+}
+
+// UniversalAuthConfig authenticates with a Machine Identity client ID and secret,
+// each read from a Kubernetes Secret by reference.
+type UniversalAuthConfig struct {
+	// ClientIDRef references the Secret key holding the Machine Identity client ID.
+	// +kubebuilder:validation:Required
+	ClientIDRef SecretReference `json:"clientIdRef"`
+
+	// ClientSecretRef references the Secret key holding the Machine Identity client secret.
+	// +kubebuilder:validation:Required
+	ClientSecretRef SecretReference `json:"clientSecretRef"`
+}
+
+// KubernetesAuthConfig authenticates with a Kubernetes service account token. The
+// issuer mints a short-lived token for the referenced service account and presents
+// it to Infisical.
+type KubernetesAuthConfig struct {
+	// IdentityIDRef references the Secret key holding the Machine Identity ID.
+	// +kubebuilder:validation:Required
+	IdentityIDRef SecretReference `json:"identityIdRef"`
+
+	// ServiceAccountRef is the service account whose token the issuer presents to Infisical.
+	// +kubebuilder:validation:Required
+	ServiceAccountRef NamespacedName `json:"serviceAccountRef"`
+
+	// ServiceAccountTokenAudiences are optional custom audiences for the minted token.
+	// +optional
+	ServiceAccountTokenAudiences []string `json:"serviceAccountTokenAudiences,omitempty"`
+}
+
+// TLSConfig configures how the issuer trusts the Infisical instance's TLS certificate.
+type TLSConfig struct {
+	// CACertificate references a Secret key holding a PEM CA certificate used to verify
+	// the connection to a self-hosted Infisical.
+	// +kubebuilder:validation:Required
+	CACertificate SecretReference `json:"caCertificate"`
+}
+
+// IssuerSpec defines the desired state of an Issuer or ClusterIssuer.
+type IssuerSpec struct {
+	// URL is the base URL of the Infisical instance, e.g. "https://app.infisical.com".
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Pattern=`^https?://.+`
 	URL string `json:"url"`
 
-	// ID of the CA in Infisical to use for signing certificates.
+	// TLS optionally configures a custom CA certificate for verifying a self-hosted
+	// Infisical instance. If omitted, the system trust store is used.
+	// +optional
+	TLS *TLSConfig `json:"tls,omitempty"`
 
+	// Application is the name of the Infisical PKI Application to issue through.
 	// +kubebuilder:validation:Required
-	ProjectID string `json:"projectId"`
+	Application string `json:"application"`
 
-	// ID of Certificate Template in Infisical to use for signing certificates.
-
+	// Profile is the name of the Certificate Profile to issue with.
 	// +kubebuilder:validation:Required
-	CertificateTemplateName string `json:"certificateTemplateName"`
+	Profile string `json:"profile"`
 
-	// A reference to a Secret in the same namespace as the referent. If the
-	// referent is a ClusterIssuer, the reference instead refers to the resource
-	// with the given name in the configured 'cluster resource namespace', which
-	// is set as a flag on the controller component (and defaults to the
-	// namespace that the controller runs in).
-
+	// Authentication selects and configures the Machine Identity auth method.
+	// +kubebuilder:validation:Required
 	Authentication Authentication `json:"authentication"`
 }
 
 // IssuerStatus defines the observed state of Issuer
 type IssuerStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// List of status conditions to indicate the status of a CertificateRequest.
-	// Known condition types are `Ready`.
+	// Conditions indicate the status of the Issuer. The known condition type is `Ready`.
 	// +optional
-	Conditions []IssuerCondition `json:"conditions,omitempty"`
+	// +listType=map
+	// +listMapKey=type
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -107,59 +148,11 @@ type IssuerList struct {
 	Items           []Issuer `json:"items"`
 }
 
-// IssuerCondition contains condition information for an Issuer.
-type IssuerCondition struct {
-	// Type of the condition, known values are ('Ready').
-	Type IssuerConditionType `json:"type"`
-
-	// Status of the condition, one of ('True', 'False', 'Unknown').
-	Status ConditionStatus `json:"status"`
-
-	// LastTransitionTime is the timestamp corresponding to the last status
-	// change of this condition.
-	// +optional
-	LastTransitionTime *metav1.Time `json:"lastTransitionTime,omitempty"`
-
-	// Reason is a brief machine readable explanation for the condition's last
-	// transition.
-	// +optional
-	Reason string `json:"reason,omitempty"`
-
-	// Message is a human readable description of the details of the last
-	// transition, complementing reason.
-	// +optional
-	Message string `json:"message,omitempty"`
-}
-
-// IssuerConditionType represents an Issuer condition value.
-type IssuerConditionType string
-
 const (
-	// IssuerConditionReady represents the fact that a given Issuer condition
-	// is in ready state and able to issue certificates.
-	// If the `status` of this condition is `False`, CertificateRequest controllers
-	// should prevent attempts to sign certificates.
-	IssuerConditionReady IssuerConditionType = "Ready"
-)
-
-// ConditionStatus represents a condition's status.
-// +kubebuilder:validation:Enum=True;False;Unknown
-type ConditionStatus string
-
-// These are valid condition statuses. "ConditionTrue" means a resource is in
-// the condition; "ConditionFalse" means a resource is not in the condition;
-// "ConditionUnknown" means kubernetes can't decide if a resource is in the
-// condition or not. In the future, we could add other intermediate
-// conditions, e.g. ConditionDegraded.
-const (
-	// ConditionTrue represents the fact that a given condition is true
-	ConditionTrue ConditionStatus = "True"
-
-	// ConditionFalse represents the fact that a given condition is false
-	ConditionFalse ConditionStatus = "False"
-
-	// ConditionUnknown represents the fact that a given condition is unknown
-	ConditionUnknown ConditionStatus = "Unknown"
+	// ConditionReady is the condition type that indicates an Issuer/ClusterIssuer
+	// is able to sign certificates. CertificateRequest controllers should not
+	// attempt to sign while this condition is not True.
+	ConditionReady = "Ready"
 )
 
 func init() {
