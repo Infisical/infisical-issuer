@@ -47,10 +47,6 @@ help: ## Display this help.
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
 	$(CONTROLLER_GEN) rbac:roleName=manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
-.PHONY: sync-crds
-sync-crds: manifests ## Regenerate the CRDs and derive the Helm chart CRD templates from them (config/crd/bases is the single source of truth).
-	./hack/sync-crds.sh
-
 .PHONY: generate
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
