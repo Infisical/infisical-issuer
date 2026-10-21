@@ -2,13 +2,16 @@ package signer
 
 import (
 	"context"
+	"crypto/x509"
 	"encoding/pem"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
+	"time"
 
 	cmapi "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 	"github.com/stretchr/testify/assert"
@@ -258,4 +261,39 @@ func TestSignerPoll(t *testing.T) {
 			assert.Equal(t, tc.wantCertificate, len(res.Certificate) > 0)
 		})
 	}
+}
+
+// TestToolchainDistrustsCompromisedEMudhraIntermediates guards the Go toolchain
+// floor in go.mod and the Dockerfile. The eMudhra intermediate private keys were
+// compromised in October 2026, and their Sectigo cross-signs chain to AAA
+// Certificate Services, which system trust stores still carry. Go 1.26.10 and
+// 1.27.3 reject chains through those intermediates; older toolchains accept a
+// forged Infisical server certificate. The fixture is a real leaf served through
+// the EM DV TLS CA - G3B cross-sign, followed by the AAA root.
+func TestToolchainDistrustsCompromisedEMudhraIntermediates(t *testing.T) {
+	data, err := os.ReadFile("testdata/emudhra-compromised-chain.pem")
+	require.NoError(t, err)
+
+	var certs []*x509.Certificate
+	for block, rest := pem.Decode(data); block != nil; block, rest = pem.Decode(rest) {
+		c, err := x509.ParseCertificate(block.Bytes)
+		require.NoError(t, err)
+		certs = append(certs, c)
+	}
+	require.Len(t, certs, 3)
+	leaf, intermediate, root := certs[0], certs[1], certs[2]
+
+	roots := x509.NewCertPool()
+	roots.AddCert(root)
+	intermediates := x509.NewCertPool()
+	intermediates.AddCert(intermediate)
+
+	_, err = leaf.Verify(x509.VerifyOptions{
+		DNSName:       leaf.Subject.CommonName,
+		Roots:         roots,
+		Intermediates: intermediates,
+		CurrentTime:   leaf.NotBefore.Add(time.Hour),
+	})
+	require.Error(t, err, "the Go toolchain trusts a compromised eMudhra intermediate; build with Go 1.26.10, 1.27.3 or later")
+	t.Logf("verification rejected as expected: %v", err)
 }

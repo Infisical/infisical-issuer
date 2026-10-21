@@ -2,7 +2,7 @@ module github.com/Infisical/infisical-issuer
 
 go 1.24.0
 
-toolchain go1.24.5
+toolchain go1.27.3
 
 require (
 	github.com/cert-manager/cert-manager v1.15.3
