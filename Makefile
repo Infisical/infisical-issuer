@@ -224,7 +224,7 @@ HELMIFY ?= $(LOCALBIN)/helmify
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v3.8.7
-CONTROLLER_TOOLS_VERSION ?= v0.16.1 # NOTE (dangtony98): Updated from v0.11.3
+CONTROLLER_TOOLS_VERSION ?= v0.16.5 # NOTE (dangtony98): Updated from v0.11.3
 KIND_VERSION := 0.18.0
 ENVTEST_K8S_VERSION ?= 1.31.0
 
