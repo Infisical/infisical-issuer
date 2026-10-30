@@ -47,11 +47,13 @@ func TestNewTLSConfig(t *testing.T) {
 	})
 
 	t.Run("presents the client certificate and trusts the custom CA", func(t *testing.T) {
-		var presented string
+		presented := make(chan string, 1)
 		srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			cn := ""
 			if len(r.TLS.PeerCertificates) > 0 {
-				presented = r.TLS.PeerCertificates[0].Subject.CommonName
+				cn = r.TLS.PeerCertificates[0].Subject.CommonName
 			}
+			presented <- cn
 		}))
 		srv.TLS = &tls.Config{ClientAuth: tls.RequireAnyClientCert}
 		srv.StartTLS()
@@ -65,6 +67,6 @@ func TestNewTLSConfig(t *testing.T) {
 		res, err := (&http.Client{Transport: &http.Transport{TLSClientConfig: cfg}}).Get(srv.URL)
 		require.NoError(t, err)
 		_ = res.Body.Close()
-		assert.Equal(t, "workload", presented)
+		assert.Equal(t, "workload", <-presented)
 	})
 }

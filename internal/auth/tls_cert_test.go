@@ -13,6 +13,7 @@ import (
 	"math/big"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -83,15 +84,20 @@ var _ = Describe("TLS Certificate Auth", func() {
 		})
 		DeferCleanup(func() { deleteSecret("tls-cert-login", namespace) })
 
-		var presentedCN, identityID string
+		type loginRequest struct {
+			path, presentedCN, identityID string
+			decodeErr                     error
+		}
+		received := make(chan loginRequest, 1)
 		server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			Expect(r.URL.Path).To(Equal("/api/v1/auth/tls-cert-auth/login"))
+			got := loginRequest{path: r.URL.Path}
 			if len(r.TLS.PeerCertificates) > 0 {
-				presentedCN = r.TLS.PeerCertificates[0].Subject.CommonName
+				got.presentedCN = r.TLS.PeerCertificates[0].Subject.CommonName
 			}
 			var body map[string]string
-			Expect(json.NewDecoder(r.Body).Decode(&body)).To(Succeed())
-			identityID = body["identityId"]
+			got.decodeErr = json.NewDecoder(r.Body).Decode(&body)
+			got.identityID = body["identityId"]
+			received <- got
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write([]byte(`{"accessToken":"bound-token","expiresIn":600,"accessTokenMaxTTL":600,"tokenType":"Bearer"}`))
 		}))
@@ -107,8 +113,12 @@ var _ = Describe("TLS Certificate Auth", func() {
 		Expect(result.AccessToken()).To(Equal("bound-token"))
 		Expect(result.ClientCertificate).ToNot(BeNil())
 		Expect(result.CredentialFingerprint).ToNot(BeEmpty())
-		Expect(presentedCN).To(Equal("workload"))
-		Expect(identityID).To(Equal("identity-id"))
+		var got loginRequest
+		Expect(received).To(Receive(&got))
+		Expect(got.decodeErr).ToNot(HaveOccurred())
+		Expect(got.path).To(Equal("/api/v1/auth/tls-cert-auth/login"))
+		Expect(got.presentedCN).To(Equal("workload"))
+		Expect(got.identityID).To(Equal("identity-id"))
 	})
 
 	It("should reject a plain http url", func() {
@@ -152,9 +162,9 @@ var _ = Describe("TLS Certificate Auth", func() {
 		})
 		DeferCleanup(func() { deleteSecret("tls-cert-rotate", namespace) })
 
-		logins := 0
+		var logins atomic.Int32
 		server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			logins++
+			logins.Add(1)
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write([]byte(`{"accessToken":"bound-token","expiresIn":600,"accessTokenMaxTTL":600,"tokenType":"Bearer"}`))
 		}))
@@ -181,7 +191,7 @@ var _ = Describe("TLS Certificate Auth", func() {
 		Expect(err).ToNot(HaveOccurred())
 		_, err = resolver.Authenticate(ctx, spec, key, namespace)
 		Expect(err).ToNot(HaveOccurred())
-		Expect(logins).To(Equal(1))
+		Expect(logins.Load()).To(BeEquivalentTo(1))
 
 		By("rotating the certificate in the Secret")
 		newCertPEM, newKeyPEM := newClientKeyPairPEM("workload")
@@ -192,6 +202,6 @@ var _ = Describe("TLS Certificate Auth", func() {
 
 		_, err = resolver.Authenticate(ctx, spec, key, namespace)
 		Expect(err).ToNot(HaveOccurred())
-		Expect(logins).To(Equal(2))
+		Expect(logins.Load()).To(BeEquivalentTo(2))
 	})
 })
