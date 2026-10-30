@@ -2,6 +2,7 @@ package signer
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -258,4 +259,18 @@ func TestSignerPoll(t *testing.T) {
 			assert.Equal(t, tc.wantCertificate, len(res.Certificate) > 0)
 		})
 	}
+}
+
+func TestRestClientConfiguresClientCertificate(t *testing.T) {
+	s := newTestSigner("https://infisical.example.com")
+	clientCert := &tls.Certificate{Certificate: [][]byte{[]byte("leaf")}}
+
+	rest, err := s.restClient(context.Background(), "token", clientCert)
+	require.NoError(t, err)
+
+	transport, ok := rest.GetClient().Transport.(*http.Transport)
+	require.True(t, ok)
+	require.NotNil(t, transport.TLSClientConfig)
+	require.Len(t, transport.TLSClientConfig.Certificates, 1)
+	assert.Equal(t, clientCert.Certificate, transport.TLSClientConfig.Certificates[0].Certificate)
 }

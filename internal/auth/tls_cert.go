@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/Infisical/infisical-issuer/api/v1alpha1"
 	"github.com/Infisical/infisical-issuer/internal/model"
@@ -16,7 +17,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const tlsCertAuthLoginPath = "/api/v1/auth/tls-cert-auth/login"
+const (
+	tlsCertAuthLoginPath    = "/api/v1/auth/tls-cert-auth/login"
+	tlsCertAuthLoginTimeout = 30 * time.Second
+)
 
 type tlsCertAuth struct {
 	client client.Client
@@ -30,6 +34,9 @@ func (t *tlsCertAuth) config(spec *v1alpha1.IssuerSpec) (*v1alpha1.TLSCertAuthCo
 	cfg := spec.Authentication.TLSCert
 	if cfg == nil {
 		return nil, fmt.Errorf("%w: method is %q but .spec.authentication.tlsCert is not set", model.ErrInvalidIssuerSpec, v1alpha1.AuthMethodTLSCert)
+	}
+	if !strings.HasPrefix(strings.ToLower(spec.URL), "https://") {
+		return nil, fmt.Errorf("%w: method %q requires an https:// url, since the client certificate is presented over TLS", model.ErrInvalidIssuerSpec, v1alpha1.AuthMethodTLSCert)
 	}
 	return cfg, nil
 }
@@ -51,8 +58,11 @@ func (t *tlsCertAuth) loadKeyPair(ctx context.Context, cfg *v1alpha1.TLSCertAuth
 }
 
 func certificateFingerprint(pair *tls.Certificate) string {
-	sum := sha256.Sum256(pair.Certificate[0])
-	return hex.EncodeToString(sum[:])
+	h := sha256.New()
+	for _, der := range pair.Certificate {
+		h.Write(der)
+	}
+	return hex.EncodeToString(h.Sum(nil))
 }
 
 func (t *tlsCertAuth) Validate(ctx context.Context, spec *v1alpha1.IssuerSpec, resourceNamespace string) error {
@@ -103,6 +113,7 @@ func (t *tlsCertAuth) Authenticate(ctx context.Context, conn *model.InfisicalCon
 
 	var cred infisical.MachineIdentityCredential
 	res, err := resty.New().
+		SetTimeout(tlsCertAuthLoginTimeout).
 		SetTLSClientConfig(tlsConfig).
 		R().
 		SetContext(ctx).
@@ -114,6 +125,9 @@ func (t *tlsCertAuth) Authenticate(ctx context.Context, conn *model.InfisicalCon
 	}
 	if res.IsError() {
 		return nil, fmt.Errorf("unable to authenticate with TLS Certificate Auth: %s: %s", res.Status(), res.String())
+	}
+	if cred.AccessToken == "" {
+		return nil, fmt.Errorf("unable to authenticate with TLS Certificate Auth: %s returned no access token; check that the issuer URL points at the Infisical API", res.Request.URL)
 	}
 
 	return &model.AuthenticationResult{

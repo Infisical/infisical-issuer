@@ -12,11 +12,9 @@ type InfisicalConnection struct {
 }
 
 type AuthenticationResult struct {
-	MachineIdentity infisical.MachineIdentityCredential
-	// ClientCertificate is presented on every API call when set.
+	MachineIdentity   infisical.MachineIdentityCredential
 	ClientCertificate *tls.Certificate
-	// CredentialFingerprint identifies the credential the token was obtained with;
-	// a cached result is discarded once the current credential no longer matches it.
+	// Cached results are dropped when this no longer matches the live credential.
 	CredentialFingerprint string
 }
 

@@ -6,8 +6,7 @@ import (
 	"fmt"
 )
 
-// NewTLSConfig returns nil when neither a custom CA nor a client certificate is set,
-// leaving the transport's defaults in place. A custom CA is appended to the system roots.
+// Returns nil when neither is set; a custom CA is added to the system roots.
 func NewTLSConfig(caCertificate string, clientCertificate *tls.Certificate) (*tls.Config, error) {
 	if caCertificate == "" && clientCertificate == nil {
 		return nil, nil

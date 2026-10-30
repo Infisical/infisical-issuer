@@ -9,6 +9,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/json"
 	"encoding/pem"
+	"fmt"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
@@ -109,6 +110,40 @@ var _ = Describe("TLS Certificate Auth", func() {
 		Expect(presentedCN).To(Equal("workload"))
 		Expect(identityID).To(Equal("identity-id"))
 	})
+
+	It("should reject a plain http url", func() {
+		err := auth.NewTLSCertAuth(k8sClient).Validate(ctx, tlsCertSpec("http://infisical.example.com", "unused", namespace), namespace)
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("requires an https:// url"))
+	})
+
+	DescribeTable("should fail login when Infisical does not return a token",
+		func(status int, body, wantErr string) {
+			certPEM, keyPEM := newClientKeyPairPEM("workload")
+			secret := fmt.Sprintf("tls-cert-bad-login-%d", status)
+			createSecret(secret, namespace, map[string][]byte{
+				"identityId": []byte("identity-id"), "tls.crt": certPEM, "tls.key": keyPEM,
+			})
+			DeferCleanup(func() { deleteSecret(secret, namespace) })
+
+			server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(status)
+				_, _ = w.Write([]byte(body))
+			}))
+			server.TLS = &tls.Config{ClientAuth: tls.RequireAnyClientCert}
+			server.StartTLS()
+			DeferCleanup(server.Close)
+
+			serverCA := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw})
+			_, err := auth.NewTLSCertAuth(k8sClient).Authenticate(ctx,
+				&model.InfisicalConnection{Host: server.URL, CaCertificate: string(serverCA)},
+				tlsCertSpec(server.URL, secret, namespace), namespace)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring(wantErr))
+		},
+		Entry("a 200 HTML page", http.StatusOK, "<html>login</html>", "returned no access token"),
+		Entry("a 401 from Infisical", http.StatusUnauthorized, `{"message":"Certificate not allowed"}`, "Certificate not allowed"),
+	)
 
 	It("should log in again after the client certificate rotates", func() {
 		certPEM, keyPEM := newClientKeyPairPEM("workload")

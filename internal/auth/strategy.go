@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/Infisical/infisical-issuer/api/v1alpha1"
@@ -19,8 +20,7 @@ type Strategy interface {
 	Authenticate(ctx context.Context, conn *model.InfisicalConnection, spec *v1alpha1.IssuerSpec, resourceNamespace string) (*model.AuthenticationResult, error)
 }
 
-// credentialFingerprinter is implemented by strategies whose credential can change
-// underneath a cached token, such as a rotated client certificate.
+// Implemented by strategies whose credential can rotate underneath a cached token.
 type credentialFingerprinter interface {
 	Fingerprint(ctx context.Context, spec *v1alpha1.IssuerSpec, resourceNamespace string) (string, error)
 }
@@ -140,6 +140,9 @@ func (r *Resolver) Connection(ctx context.Context, spec *v1alpha1.IssuerSpec, re
 		caCert, err := util.ResolveSecretReference(ctx, r.client, spec.TLS.CACertificate, resourceNamespace, ".spec.tls.caCertificate")
 		if err != nil {
 			return nil, err
+		}
+		if strings.TrimSpace(caCert) == "" {
+			return nil, fmt.Errorf("%w: .spec.tls.caCertificate references an empty value", model.ErrInvalidIssuerSpec)
 		}
 		conn.CaCertificate = caCert
 	}
