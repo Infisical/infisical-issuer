@@ -1,6 +1,8 @@
 package model
 
 import (
+	"crypto/tls"
+
 	infisical "github.com/infisical/go-sdk"
 )
 
@@ -10,7 +12,10 @@ type InfisicalConnection struct {
 }
 
 type AuthenticationResult struct {
-	MachineIdentity infisical.MachineIdentityCredential
+	MachineIdentity   infisical.MachineIdentityCredential
+	ClientCertificate *tls.Certificate
+	// Cached results are dropped when this no longer matches the live credential.
+	CredentialFingerprint string
 }
 
 func (a *AuthenticationResult) AccessToken() string {
