@@ -3,7 +3,6 @@ package signer
 import (
 	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -12,6 +11,7 @@ import (
 	"github.com/Infisical/infisical-issuer/api/v1alpha1"
 	"github.com/Infisical/infisical-issuer/internal/auth"
 	"github.com/Infisical/infisical-issuer/internal/cache"
+	"github.com/Infisical/infisical-issuer/internal/util"
 	certmanager "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 	"github.com/go-resty/resty/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -62,26 +62,26 @@ func New(_ client.Client, resolver *auth.Resolver, spec *v1alpha1.IssuerSpec, ke
 	return &signer{resolver: resolver, spec: spec, key: key, resourceNamespace: resourceNamespace}, nil
 }
 
-func (s *signer) restClient(ctx context.Context, token string) (*resty.Client, error) {
+func (s *signer) restClient(ctx context.Context, token string, clientCertificate *tls.Certificate) (*resty.Client, error) {
 	c := resty.New().
 		SetBaseURL(s.spec.URL).
 		SetAuthToken(token).
 		SetHeader("Content-Type", "application/json")
 
+	caCertificate := ""
 	if s.spec.TLS != nil {
 		conn, err := s.resolver.Connection(ctx, s.spec, s.resourceNamespace)
 		if err != nil {
 			return nil, err
 		}
-		// Append the configured CA to the system roots rather than replacing them.
-		pool, err := x509.SystemCertPool()
-		if err != nil || pool == nil {
-			pool = x509.NewCertPool()
-		}
-		if !pool.AppendCertsFromPEM([]byte(conn.CaCertificate)) {
-			return nil, fmt.Errorf("no valid certificates found in tls.caCertificate")
-		}
-		c.SetTLSClientConfig(&tls.Config{RootCAs: pool})
+		caCertificate = conn.CaCertificate
+	}
+	tlsConfig, err := util.NewTLSConfig(caCertificate, clientCertificate)
+	if err != nil {
+		return nil, err
+	}
+	if tlsConfig != nil {
+		c.SetTLSClientConfig(tlsConfig)
 	}
 	return c, nil
 }
@@ -91,7 +91,7 @@ func (s *signer) authedClient(ctx context.Context) (*resty.Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("authenticating with Infisical: %w", err)
 	}
-	return s.restClient(ctx, result.AccessToken())
+	return s.restClient(ctx, result.AccessToken(), result.ClientCertificate)
 }
 
 type terminalError struct{ msg string }

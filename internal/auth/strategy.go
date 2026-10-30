@@ -19,6 +19,12 @@ type Strategy interface {
 	Authenticate(ctx context.Context, conn *model.InfisicalConnection, spec *v1alpha1.IssuerSpec, resourceNamespace string) (*model.AuthenticationResult, error)
 }
 
+// credentialFingerprinter is implemented by strategies whose credential can change
+// underneath a cached token, such as a rotated client certificate.
+type credentialFingerprinter interface {
+	Fingerprint(ctx context.Context, spec *v1alpha1.IssuerSpec, resourceNamespace string) (string, error)
+}
+
 const cacheTTLFraction = 0.7
 
 type Resolver struct {
@@ -37,6 +43,7 @@ func NewResolver(c client.Client, authCache *cache.AuthCache, logger logr.Logger
 	}
 	r.strategies[v1alpha1.AuthMethodUniversal] = NewUniversalAuth(c)
 	r.strategies[v1alpha1.AuthMethodKubernetes] = NewKubernetesAuth(c)
+	r.strategies[v1alpha1.AuthMethodTLSCert] = NewTLSCertAuth(c)
 	return r
 }
 
@@ -73,8 +80,16 @@ func (r *Resolver) Authenticate(ctx context.Context, spec *v1alpha1.IssuerSpec, 
 	}
 
 	if cached, found := r.cache.Get(key); found {
-		r.logger.V(1).Info("reusing cached authentication", "issuer", key.String())
-		return cached, nil
+		fresh, err := r.cachedCredentialIsCurrent(ctx, s, cached, spec, resourceNamespace)
+		if err != nil {
+			return nil, err
+		}
+		if fresh {
+			r.logger.V(1).Info("reusing cached authentication", "issuer", key.String())
+			return cached, nil
+		}
+		r.logger.Info("credential changed since last login, re-authenticating", "issuer", key.String())
+		r.cache.Delete(key)
 	}
 
 	conn, err := r.Connection(ctx, spec, resourceNamespace)
@@ -101,6 +116,18 @@ func (r *Resolver) Authenticate(ctx context.Context, spec *v1alpha1.IssuerSpec, 
 	}
 
 	return result, nil
+}
+
+func (r *Resolver) cachedCredentialIsCurrent(ctx context.Context, s Strategy, cached *model.AuthenticationResult, spec *v1alpha1.IssuerSpec, resourceNamespace string) (bool, error) {
+	f, ok := s.(credentialFingerprinter)
+	if !ok {
+		return true, nil
+	}
+	current, err := f.Fingerprint(ctx, spec, resourceNamespace)
+	if err != nil {
+		return false, err
+	}
+	return current == cached.CredentialFingerprint, nil
 }
 
 func (r *Resolver) Invalidate(key cache.ClientCacheKey) {

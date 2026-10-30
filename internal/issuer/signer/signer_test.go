@@ -156,7 +156,7 @@ func TestSignerIssue(t *testing.T) {
 			defer srv.Close()
 
 			s := newTestSigner(srv.URL)
-			rest, err := s.restClient(context.Background(), "token")
+			rest, err := s.restClient(context.Background(), "token", nil)
 			require.NoError(t, err)
 
 			res, err := s.issue(context.Background(), rest, cr)
@@ -196,7 +196,7 @@ func TestCheckResponseClassification(t *testing.T) {
 			defer srv.Close()
 
 			s := newTestSigner(srv.URL)
-			rest, err := s.restClient(context.Background(), "token")
+			rest, err := s.restClient(context.Background(), "token", nil)
 			require.NoError(t, err)
 
 			res, err := rest.R().SetContext(context.Background()).Get("/")
@@ -244,7 +244,7 @@ func TestSignerPoll(t *testing.T) {
 			defer srv.Close()
 
 			s := newTestSigner(srv.URL)
-			rest, err := s.restClient(context.Background(), "token")
+			rest, err := s.restClient(context.Background(), "token", nil)
 			require.NoError(t, err)
 
 			res, err := s.poll(context.Background(), rest, "req-1")
