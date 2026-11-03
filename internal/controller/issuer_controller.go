@@ -12,7 +12,9 @@ import (
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	issuerapi "github.com/Infisical/infisical-issuer/api/v1alpha1"
 	"github.com/Infisical/infisical-issuer/internal/auth"
@@ -131,7 +133,7 @@ func (r *IssuerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (res
 
 	if ready := util.GetReadyCondition(issuerStatus); ready == nil {
 		report(metav1.ConditionUnknown, "First seen", nil)
-		return ctrl.Result{}, nil
+		return ctrl.Result{Requeue: true}, nil
 	}
 
 	resourceNamespace := r.resourceNamespace(req.Namespace)
@@ -162,6 +164,6 @@ func (r *IssuerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 	r.recorder = mgr.GetEventRecorderFor(issuerapi.EventSource)
 	return ctrl.NewControllerManagedBy(mgr).
-		For(issuerType).
+		For(issuerType, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
 		Complete(r)
 }

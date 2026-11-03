@@ -115,18 +115,18 @@ func (s *signer) checkResponse(res *resty.Response, action string) error {
 	code := res.StatusCode()
 	if code == http.StatusUnauthorized {
 		s.resolver.Invalidate(s.key)
-		return fmt.Errorf("%s: %s", action, res.String())
+		return fmt.Errorf("%s: %s", action, util.DescribeErrorResponse(res))
 	}
 	if !res.IsError() {
 		return nil
 	}
 	if code == http.StatusRequestTimeout || code == http.StatusTooManyRequests {
-		return fmt.Errorf("%s: %s", action, res.String())
+		return fmt.Errorf("%s: %s", action, util.DescribeErrorResponse(res))
 	}
 	if code >= 400 && code < 500 {
-		return &terminalError{msg: fmt.Sprintf("%s: %s", action, res.String())}
+		return &terminalError{msg: fmt.Sprintf("%s: %s", action, util.DescribeErrorResponse(res))}
 	}
-	return fmt.Errorf("%s: %s", action, res.String())
+	return fmt.Errorf("%s: %s", action, util.DescribeErrorResponse(res))
 }
 
 func (s *signer) Check(ctx context.Context) error {
@@ -216,7 +216,9 @@ func (s *signer) issue(ctx context.Context, rest *resty.Client, cr certmanager.C
 	}
 
 	if out.Certificate != nil {
-		return assemble(out.Certificate.Certificate, out.Certificate.CertificateChain)
+		result, err := assemble(out.Certificate.Certificate, out.Certificate.CertificateChain)
+		result.RequestID = out.CertificateRequestID
+		return result, err
 	}
 
 	// No certificate in the response: a 2xx can still carry a terminal status, and

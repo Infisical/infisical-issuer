@@ -54,6 +54,13 @@ func (t *tlsCertAuth) loadKeyPair(ctx context.Context, cfg *v1alpha1.TLSCertAuth
 	if err != nil {
 		return nil, fmt.Errorf("%w: unable to load client certificate and key: %v", model.ErrInvalidIssuerSpec, err)
 	}
+	now := time.Now()
+	if pair.Leaf.NotAfter.Before(now) {
+		return nil, fmt.Errorf("%w: the client certificate in .spec.authentication.tlsCert.clientCertificateRef expired at %s", model.ErrInvalidIssuerSpec, pair.Leaf.NotAfter.UTC().Format(time.RFC3339))
+	}
+	if pair.Leaf.NotBefore.After(now) {
+		return nil, fmt.Errorf("%w: the client certificate in .spec.authentication.tlsCert.clientCertificateRef is not valid until %s", model.ErrInvalidIssuerSpec, pair.Leaf.NotBefore.UTC().Format(time.RFC3339))
+	}
 	return &pair, nil
 }
 
@@ -124,7 +131,7 @@ func (t *tlsCertAuth) Authenticate(ctx context.Context, conn *model.InfisicalCon
 		return nil, fmt.Errorf("unable to authenticate with TLS Certificate Auth: %w", err)
 	}
 	if res.IsError() {
-		return nil, fmt.Errorf("unable to authenticate with TLS Certificate Auth: %s: %s", res.Status(), res.String())
+		return nil, fmt.Errorf("unable to authenticate with TLS Certificate Auth: %s", util.DescribeErrorResponse(res))
 	}
 	if cred.AccessToken == "" {
 		return nil, fmt.Errorf("unable to authenticate with TLS Certificate Auth: %s returned no access token; check that the issuer URL points at the Infisical API", res.Request.URL)

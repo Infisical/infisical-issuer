@@ -121,6 +121,32 @@ var _ = Describe("TLS Certificate Auth", func() {
 		Expect(got.identityID).To(Equal("identity-id"))
 	})
 
+	It("should report an expired client certificate", func() {
+		key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+		Expect(err).ToNot(HaveOccurred())
+		template := &x509.Certificate{
+			SerialNumber: big.NewInt(time.Now().UnixNano()),
+			Subject:      pkix.Name{CommonName: "expired"},
+			NotBefore:    time.Now().Add(-48 * time.Hour),
+			NotAfter:     time.Now().Add(-24 * time.Hour),
+			ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+		}
+		der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+		Expect(err).ToNot(HaveOccurred())
+		keyDER, err := x509.MarshalECPrivateKey(key)
+		Expect(err).ToNot(HaveOccurred())
+		createSecret("tls-cert-expired", namespace, map[string][]byte{
+			"identityId": []byte("identity-id"),
+			"tls.crt":    pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}),
+			"tls.key":    pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER}),
+		})
+		DeferCleanup(func() { deleteSecret("tls-cert-expired", namespace) })
+
+		err = auth.NewTLSCertAuth(k8sClient).Validate(ctx, tlsCertSpec("https://example.com", "tls-cert-expired", namespace), namespace)
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("client certificate in .spec.authentication.tlsCert.clientCertificateRef expired at"))
+	})
+
 	It("should reject a plain http url", func() {
 		err := auth.NewTLSCertAuth(k8sClient).Validate(ctx, tlsCertSpec("http://infisical.example.com", "unused", namespace), namespace)
 		Expect(err).To(HaveOccurred())

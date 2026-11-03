@@ -16,6 +16,7 @@ import (
 	cmapi "github.com/cert-manager/cert-manager/pkg/apis/certmanager/v1"
 	cmmeta "github.com/cert-manager/cert-manager/pkg/apis/meta/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -23,7 +24,10 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/utils/clock"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
 var (
@@ -144,7 +148,7 @@ func (r *CertificateRequestReconciler) Reconcile(ctx context.Context, req ctrl.R
 
 	if ready := cmutil.GetCertificateRequestCondition(&certificateRequest, cmapi.CertificateRequestConditionReady); ready == nil {
 		report(cmapi.CertificateRequestReasonPending, "Initialising Ready condition", nil)
-		return ctrl.Result{}, nil
+		return ctrl.Result{Requeue: true}, nil
 	}
 
 	issuerGVK := issuerapi.GroupVersion.WithKind(certificateRequest.Spec.IssuerRef.Kind)
@@ -211,21 +215,19 @@ func (r *CertificateRequestReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, fmt.Errorf("%w: %w", errSignerSign, err)
 	}
 
-	if signResult.Pending {
-		// Record the in-flight request id so the next reconcile polls it instead of
-		// creating a duplicate. A merge Patch (no resourceVersion precondition) avoids
-		// failing on concurrent status churn; a duplicate is still possible if the pod
-		// dies between create and patch, leaving a pending request an operator can deny.
-		if signResult.RequestID != "" && certificateRequest.Annotations[requestIDAnnotation] != signResult.RequestID {
-			base := certificateRequest.DeepCopy()
-			if certificateRequest.Annotations == nil {
-				certificateRequest.Annotations = map[string]string{}
-			}
-			certificateRequest.Annotations[requestIDAnnotation] = signResult.RequestID
-			if err := r.Patch(ctx, &certificateRequest, client.MergeFrom(base)); err != nil {
-				return ctrl.Result{}, fmt.Errorf("recording certificate request id: %w", err)
-			}
+	// Recorded for issued results too, so a retry after a failed status write polls instead of re-issuing.
+	if signResult.RequestID != "" && certificateRequest.Annotations[requestIDAnnotation] != signResult.RequestID {
+		base := certificateRequest.DeepCopy()
+		if certificateRequest.Annotations == nil {
+			certificateRequest.Annotations = map[string]string{}
 		}
+		certificateRequest.Annotations[requestIDAnnotation] = signResult.RequestID
+		if err := r.Patch(ctx, &certificateRequest, client.MergeFrom(base)); err != nil {
+			return ctrl.Result{}, fmt.Errorf("recording certificate request id: %w", err)
+		}
+	}
+
+	if signResult.Pending {
 		report(cmapi.CertificateRequestReasonPending, signResult.PendingMessage, nil)
 		return ctrl.Result{RequeueAfter: pendingRequeueInterval}, nil
 	}
@@ -263,6 +265,38 @@ func alreadyResolved(cr *cmapi.CertificateRequest) (string, bool) {
 func (r *CertificateRequestReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	r.recorder = mgr.GetEventRecorderFor(issuerapi.EventSource)
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&cmapi.CertificateRequest{}).
+		For(&cmapi.CertificateRequest{}, builder.WithPredicates(ignoreOwnStatusWrites())).
 		Complete(r)
+}
+
+// Without this, every status write re-enqueues the request immediately and a
+// failing request retries in a tight loop instead of backing off.
+func ignoreOwnStatusWrites() predicate.Predicate {
+	return predicate.Funcs{
+		UpdateFunc: func(e event.UpdateEvent) bool {
+			oldCR, okOld := e.ObjectOld.(*cmapi.CertificateRequest)
+			newCR, okNew := e.ObjectNew.(*cmapi.CertificateRequest)
+			if !okOld || !okNew {
+				return true
+			}
+			return !equality.Semantic.DeepEqual(withoutOwnStatus(oldCR), withoutOwnStatus(newCR))
+		},
+	}
+}
+
+func withoutOwnStatus(cr *cmapi.CertificateRequest) *cmapi.CertificateRequest {
+	c := cr.DeepCopy()
+	c.ResourceVersion = ""
+	c.ManagedFields = nil
+	c.Status.Certificate = nil
+	c.Status.CA = nil
+	c.Status.FailureTime = nil
+	conditions := c.Status.Conditions[:0]
+	for _, cond := range c.Status.Conditions {
+		if cond.Type != cmapi.CertificateRequestConditionReady {
+			conditions = append(conditions, cond)
+		}
+	}
+	c.Status.Conditions = conditions
+	return c
 }
