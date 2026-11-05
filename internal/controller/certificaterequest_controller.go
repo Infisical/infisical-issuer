@@ -223,7 +223,11 @@ func (r *CertificateRequestReconciler) Reconcile(ctx context.Context, req ctrl.R
 		}
 		certificateRequest.Annotations[requestIDAnnotation] = signResult.RequestID
 		if err := r.Patch(ctx, &certificateRequest, client.MergeFrom(base)); err != nil {
-			return ctrl.Result{}, fmt.Errorf("recording certificate request id: %w", err)
+			if signResult.Pending {
+				return ctrl.Result{}, fmt.Errorf("recording certificate request id: %w", err)
+			}
+			// The certificate is already issued, so saving it matters more than the id.
+			log.Error(err, "recording certificate request id; saving the issued certificate anyway")
 		}
 	}
 

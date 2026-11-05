@@ -29,6 +29,17 @@ func TestDescribeErrorResponse(t *testing.T) {
 		assert.Equal(t, "400 Bad Request: Certificate not allowed", got)
 	})
 
+	t.Run("joins the validation issues Infisical sends on 422", func(t *testing.T) {
+		got := DescribeErrorResponse(respond(t, "application/json", `{"reqId":"req-abc","statusCode":422,"error":"ValidationFailure","message":[{"code":"invalid_string","message":"Invalid name","path":["name"]},{"code":"too_small","message":"Required","path":["attributes","ttl"]}]}`))
+		assert.Equal(t, "400 Bad Request: name: Invalid name; attributes.ttl: Required", got)
+		assert.NotContains(t, got, "not from the Infisical API")
+	})
+
+	t.Run("falls back to the error name when Infisical sends no message", func(t *testing.T) {
+		got := DescribeErrorResponse(respond(t, "application/json", `{"reqId":"req-abc","statusCode":400,"error":"BadRequest"}`))
+		assert.Equal(t, "400 Bad Request: BadRequest", got)
+	})
+
 	t.Run("summarizes a response that is not from Infisical", func(t *testing.T) {
 		got := DescribeErrorResponse(respond(t, "text/html", "<html><body>400 The SSL certificate error</body></html>"))
 		assert.Contains(t, got, "400 Bad Request from ")

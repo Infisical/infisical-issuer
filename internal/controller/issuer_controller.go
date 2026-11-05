@@ -164,6 +164,10 @@ func (r *IssuerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	}
 	r.recorder = mgr.GetEventRecorderFor(issuerapi.EventSource)
 	return ctrl.NewControllerManagedBy(mgr).
-		For(issuerType, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
+		For(issuerType, builder.WithPredicates(predicate.Or(
+			predicate.GenerationChangedPredicate{},
+			predicate.AnnotationChangedPredicate{},
+			predicate.LabelChangedPredicate{},
+		))).
 		Complete(r)
 }
