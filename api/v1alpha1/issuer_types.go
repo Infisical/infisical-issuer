@@ -31,19 +31,20 @@ type NamespacedName struct {
 }
 
 // AuthMethod selects which Machine Identity authentication method the issuer uses.
-// +kubebuilder:validation:Enum=universal;kubernetes
+// +kubebuilder:validation:Enum=universal;kubernetes;tlsCert
 type AuthMethod string
 
 // Supported Machine Identity authentication methods.
 const (
 	AuthMethodUniversal  AuthMethod = "universal"
 	AuthMethodKubernetes AuthMethod = "kubernetes"
+	AuthMethodTLSCert    AuthMethod = "tlsCert"
 )
 
 // Authentication defines how the issuer authenticates with Infisical. Set a
 // method and fill in the matching config block.
 type Authentication struct {
-	// Method selects the authentication method. One of "universal" or "kubernetes".
+	// Method selects the authentication method. One of "universal", "kubernetes" or "tlsCert".
 	// +kubebuilder:validation:Required
 	Method AuthMethod `json:"method"`
 
@@ -54,6 +55,10 @@ type Authentication struct {
 	// Kubernetes holds the configuration for Kubernetes Auth. Required when method is "kubernetes".
 	// +optional
 	Kubernetes *KubernetesAuthConfig `json:"kubernetes,omitempty"`
+
+	// TLSCert holds the configuration for TLS Certificate Auth. Required when method is "tlsCert".
+	// +optional
+	TLSCert *TLSCertAuthConfig `json:"tlsCert,omitempty"`
 }
 
 // UniversalAuthConfig authenticates with a Machine Identity client ID and secret,
@@ -83,6 +88,21 @@ type KubernetesAuthConfig struct {
 	// ServiceAccountTokenAudiences are optional custom audiences for the minted token.
 	// +optional
 	ServiceAccountTokenAudiences []string `json:"serviceAccountTokenAudiences,omitempty"`
+}
+
+// TLSCertAuthConfig authenticates with a client certificate presented on every API call.
+type TLSCertAuthConfig struct {
+	// IdentityIDRef references the Secret key holding the Machine Identity ID.
+	// +kubebuilder:validation:Required
+	IdentityIDRef SecretReference `json:"identityIdRef"`
+
+	// ClientCertificateRef references the Secret key holding the PEM client certificate and any intermediates.
+	// +kubebuilder:validation:Required
+	ClientCertificateRef SecretReference `json:"clientCertificateRef"`
+
+	// ClientKeyRef references the Secret key holding the PEM private key for the client certificate.
+	// +kubebuilder:validation:Required
+	ClientKeyRef SecretReference `json:"clientKeyRef"`
 }
 
 // TLSConfig configures how the issuer trusts the Infisical instance's TLS certificate.

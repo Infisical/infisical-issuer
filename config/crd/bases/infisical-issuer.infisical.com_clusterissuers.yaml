@@ -93,11 +93,75 @@ spec:
                     type: object
                   method:
                     description: Method selects the authentication method. One of
-                      "universal" or "kubernetes".
+                      "universal", "kubernetes" or "tlsCert".
                     enum:
                     - universal
                     - kubernetes
+                    - tlsCert
                     type: string
+                  tlsCert:
+                    description: TLSCert holds the configuration for TLS Certificate
+                      Auth. Required when method is "tlsCert".
+                    properties:
+                      clientCertificateRef:
+                        description: ClientCertificateRef references the Secret key
+                          holding the PEM client certificate and any intermediates.
+                        properties:
+                          key:
+                            description: Key within the Secret that holds the value.
+                            type: string
+                          name:
+                            description: Name of the Kubernetes Secret.
+                            type: string
+                          namespace:
+                            description: Namespace of the Kubernetes Secret.
+                            type: string
+                        required:
+                        - key
+                        - name
+                        - namespace
+                        type: object
+                      clientKeyRef:
+                        description: ClientKeyRef references the Secret key holding
+                          the PEM private key for the client certificate.
+                        properties:
+                          key:
+                            description: Key within the Secret that holds the value.
+                            type: string
+                          name:
+                            description: Name of the Kubernetes Secret.
+                            type: string
+                          namespace:
+                            description: Namespace of the Kubernetes Secret.
+                            type: string
+                        required:
+                        - key
+                        - name
+                        - namespace
+                        type: object
+                      identityIdRef:
+                        description: IdentityIDRef references the Secret key holding
+                          the Machine Identity ID.
+                        properties:
+                          key:
+                            description: Key within the Secret that holds the value.
+                            type: string
+                          name:
+                            description: Name of the Kubernetes Secret.
+                            type: string
+                          namespace:
+                            description: Namespace of the Kubernetes Secret.
+                            type: string
+                        required:
+                        - key
+                        - name
+                        - namespace
+                        type: object
+                    required:
+                    - clientCertificateRef
+                    - clientKeyRef
+                    - identityIdRef
+                    type: object
                   universal:
                     description: Universal holds the configuration for Universal Auth.
                       Required when method is "universal".

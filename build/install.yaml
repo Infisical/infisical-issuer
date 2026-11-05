@@ -11,7 +11,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.1
+    controller-gen.kubebuilder.io/version: v0.16.5
   name: clusterissuers.infisical-issuer.infisical.com
 spec:
   group: infisical-issuer.infisical.com
@@ -48,20 +48,16 @@ spec:
             description: IssuerSpec defines the desired state of an Issuer or ClusterIssuer.
             properties:
               application:
-                description: Application is the name of the Infisical PKI Application
-                  to issue through.
+                description: Application is the name of the Infisical PKI Application to issue through.
                 type: string
               authentication:
-                description: Authentication selects and configures the Machine Identity
-                  auth method.
+                description: Authentication selects and configures the Machine Identity auth method.
                 properties:
                   kubernetes:
-                    description: Kubernetes holds the configuration for Kubernetes
-                      Auth. Required when method is "kubernetes".
+                    description: Kubernetes holds the configuration for Kubernetes Auth. Required when method is "kubernetes".
                     properties:
                       identityIdRef:
-                        description: IdentityIDRef references the Secret key holding
-                          the Machine Identity ID.
+                        description: IdentityIDRef references the Secret key holding the Machine Identity ID.
                         properties:
                           key:
                             description: Key within the Secret that holds the value.
@@ -78,8 +74,7 @@ spec:
                         - namespace
                         type: object
                       serviceAccountRef:
-                        description: ServiceAccountRef is the service account whose
-                          token the issuer presents to Infisical.
+                        description: ServiceAccountRef is the service account whose token the issuer presents to Infisical.
                         properties:
                           name:
                             type: string
@@ -90,8 +85,7 @@ spec:
                         - namespace
                         type: object
                       serviceAccountTokenAudiences:
-                        description: ServiceAccountTokenAudiences are optional custom
-                          audiences for the minted token.
+                        description: ServiceAccountTokenAudiences are optional custom audiences for the minted token.
                         items:
                           type: string
                         type: array
@@ -100,19 +94,76 @@ spec:
                     - serviceAccountRef
                     type: object
                   method:
-                    description: Method selects the authentication method. One of
-                      "universal" or "kubernetes".
+                    description: Method selects the authentication method. One of "universal", "kubernetes" or "tlsCert".
                     enum:
                     - universal
                     - kubernetes
+                    - tlsCert
                     type: string
+                  tlsCert:
+                    description: TLSCert holds the configuration for TLS Certificate Auth. Required when method is "tlsCert".
+                    properties:
+                      clientCertificateRef:
+                        description: ClientCertificateRef references the Secret key holding the PEM client certificate and any intermediates.
+                        properties:
+                          key:
+                            description: Key within the Secret that holds the value.
+                            type: string
+                          name:
+                            description: Name of the Kubernetes Secret.
+                            type: string
+                          namespace:
+                            description: Namespace of the Kubernetes Secret.
+                            type: string
+                        required:
+                        - key
+                        - name
+                        - namespace
+                        type: object
+                      clientKeyRef:
+                        description: ClientKeyRef references the Secret key holding the PEM private key for the client certificate.
+                        properties:
+                          key:
+                            description: Key within the Secret that holds the value.
+                            type: string
+                          name:
+                            description: Name of the Kubernetes Secret.
+                            type: string
+                          namespace:
+                            description: Namespace of the Kubernetes Secret.
+                            type: string
+                        required:
+                        - key
+                        - name
+                        - namespace
+                        type: object
+                      identityIdRef:
+                        description: IdentityIDRef references the Secret key holding the Machine Identity ID.
+                        properties:
+                          key:
+                            description: Key within the Secret that holds the value.
+                            type: string
+                          name:
+                            description: Name of the Kubernetes Secret.
+                            type: string
+                          namespace:
+                            description: Namespace of the Kubernetes Secret.
+                            type: string
+                        required:
+                        - key
+                        - name
+                        - namespace
+                        type: object
+                    required:
+                    - clientCertificateRef
+                    - clientKeyRef
+                    - identityIdRef
+                    type: object
                   universal:
-                    description: Universal holds the configuration for Universal Auth.
-                      Required when method is "universal".
+                    description: Universal holds the configuration for Universal Auth. Required when method is "universal".
                     properties:
                       clientIdRef:
-                        description: ClientIDRef references the Secret key holding
-                          the Machine Identity client ID.
+                        description: ClientIDRef references the Secret key holding the Machine Identity client ID.
                         properties:
                           key:
                             description: Key within the Secret that holds the value.
@@ -129,8 +180,7 @@ spec:
                         - namespace
                         type: object
                       clientSecretRef:
-                        description: ClientSecretRef references the Secret key holding
-                          the Machine Identity client secret.
+                        description: ClientSecretRef references the Secret key holding the Machine Identity client secret.
                         properties:
                           key:
                             description: Key within the Secret that holds the value.
@@ -154,8 +204,7 @@ spec:
                 - method
                 type: object
               profile:
-                description: Profile is the name of the Certificate Profile to issue
-                  with.
+                description: Profile is the name of the Certificate Profile to issue with.
                 type: string
               tls:
                 description: |-
@@ -198,11 +247,9 @@ spec:
             description: IssuerStatus defines the observed state of Issuer
             properties:
               conditions:
-                description: Conditions indicate the status of the Issuer. The known
-                  condition type is `Ready`.
+                description: Conditions indicate the status of the Issuer. The known condition type is `Ready`.
                 items:
-                  description: Condition contains details for one aspect of the current
-                    state of this API Resource.
+                  description: Condition contains details for one aspect of the current state of this API Resource.
                   properties:
                     lastTransitionTime:
                       description: |-
@@ -269,7 +316,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.16.1
+    controller-gen.kubebuilder.io/version: v0.16.5
   name: issuers.infisical-issuer.infisical.com
 spec:
   group: infisical-issuer.infisical.com
@@ -306,20 +353,16 @@ spec:
             description: IssuerSpec defines the desired state of an Issuer or ClusterIssuer.
             properties:
               application:
-                description: Application is the name of the Infisical PKI Application
-                  to issue through.
+                description: Application is the name of the Infisical PKI Application to issue through.
                 type: string
               authentication:
-                description: Authentication selects and configures the Machine Identity
-                  auth method.
+                description: Authentication selects and configures the Machine Identity auth method.
                 properties:
                   kubernetes:
-                    description: Kubernetes holds the configuration for Kubernetes
-                      Auth. Required when method is "kubernetes".
+                    description: Kubernetes holds the configuration for Kubernetes Auth. Required when method is "kubernetes".
                     properties:
                       identityIdRef:
-                        description: IdentityIDRef references the Secret key holding
-                          the Machine Identity ID.
+                        description: IdentityIDRef references the Secret key holding the Machine Identity ID.
                         properties:
                           key:
                             description: Key within the Secret that holds the value.
@@ -336,8 +379,7 @@ spec:
                         - namespace
                         type: object
                       serviceAccountRef:
-                        description: ServiceAccountRef is the service account whose
-                          token the issuer presents to Infisical.
+                        description: ServiceAccountRef is the service account whose token the issuer presents to Infisical.
                         properties:
                           name:
                             type: string
@@ -348,8 +390,7 @@ spec:
                         - namespace
                         type: object
                       serviceAccountTokenAudiences:
-                        description: ServiceAccountTokenAudiences are optional custom
-                          audiences for the minted token.
+                        description: ServiceAccountTokenAudiences are optional custom audiences for the minted token.
                         items:
                           type: string
                         type: array
@@ -358,19 +399,76 @@ spec:
                     - serviceAccountRef
                     type: object
                   method:
-                    description: Method selects the authentication method. One of
-                      "universal" or "kubernetes".
+                    description: Method selects the authentication method. One of "universal", "kubernetes" or "tlsCert".
                     enum:
                     - universal
                     - kubernetes
+                    - tlsCert
                     type: string
+                  tlsCert:
+                    description: TLSCert holds the configuration for TLS Certificate Auth. Required when method is "tlsCert".
+                    properties:
+                      clientCertificateRef:
+                        description: ClientCertificateRef references the Secret key holding the PEM client certificate and any intermediates.
+                        properties:
+                          key:
+                            description: Key within the Secret that holds the value.
+                            type: string
+                          name:
+                            description: Name of the Kubernetes Secret.
+                            type: string
+                          namespace:
+                            description: Namespace of the Kubernetes Secret.
+                            type: string
+                        required:
+                        - key
+                        - name
+                        - namespace
+                        type: object
+                      clientKeyRef:
+                        description: ClientKeyRef references the Secret key holding the PEM private key for the client certificate.
+                        properties:
+                          key:
+                            description: Key within the Secret that holds the value.
+                            type: string
+                          name:
+                            description: Name of the Kubernetes Secret.
+                            type: string
+                          namespace:
+                            description: Namespace of the Kubernetes Secret.
+                            type: string
+                        required:
+                        - key
+                        - name
+                        - namespace
+                        type: object
+                      identityIdRef:
+                        description: IdentityIDRef references the Secret key holding the Machine Identity ID.
+                        properties:
+                          key:
+                            description: Key within the Secret that holds the value.
+                            type: string
+                          name:
+                            description: Name of the Kubernetes Secret.
+                            type: string
+                          namespace:
+                            description: Namespace of the Kubernetes Secret.
+                            type: string
+                        required:
+                        - key
+                        - name
+                        - namespace
+                        type: object
+                    required:
+                    - clientCertificateRef
+                    - clientKeyRef
+                    - identityIdRef
+                    type: object
                   universal:
-                    description: Universal holds the configuration for Universal Auth.
-                      Required when method is "universal".
+                    description: Universal holds the configuration for Universal Auth. Required when method is "universal".
                     properties:
                       clientIdRef:
-                        description: ClientIDRef references the Secret key holding
-                          the Machine Identity client ID.
+                        description: ClientIDRef references the Secret key holding the Machine Identity client ID.
                         properties:
                           key:
                             description: Key within the Secret that holds the value.
@@ -387,8 +485,7 @@ spec:
                         - namespace
                         type: object
                       clientSecretRef:
-                        description: ClientSecretRef references the Secret key holding
-                          the Machine Identity client secret.
+                        description: ClientSecretRef references the Secret key holding the Machine Identity client secret.
                         properties:
                           key:
                             description: Key within the Secret that holds the value.
@@ -412,8 +509,7 @@ spec:
                 - method
                 type: object
               profile:
-                description: Profile is the name of the Certificate Profile to issue
-                  with.
+                description: Profile is the name of the Certificate Profile to issue with.
                 type: string
               tls:
                 description: |-
@@ -456,11 +552,9 @@ spec:
             description: IssuerStatus defines the observed state of Issuer
             properties:
               conditions:
-                description: Conditions indicate the status of the Issuer. The known
-                  condition type is `Ready`.
+                description: Conditions indicate the status of the Issuer. The known condition type is `Ready`.
                 items:
-                  description: Condition contains details for one aspect of the current
-                    state of this API Resource.
+                  description: Condition contains details for one aspect of the current state of this API Resource.
                   properties:
                     lastTransitionTime:
                       description: |-

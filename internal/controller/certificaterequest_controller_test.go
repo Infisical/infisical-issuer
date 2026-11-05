@@ -212,6 +212,7 @@ var _ = Describe("CertificateRequest Controller", func() {
 			},
 			expectedReadyConditionStatus: cmmeta.ConditionFalse,
 			expectedReadyConditionReason: cmapi.CertificateRequestReasonPending,
+			expectedResult:               ctrl.Result{Requeue: true},
 		},
 		"issuer-ref-unknown-kind": {
 			name: types.NamespacedName{Namespace: "ns1", Name: "cr1"},
