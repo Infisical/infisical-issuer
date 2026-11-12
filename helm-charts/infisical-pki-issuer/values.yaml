@@ -1,4 +1,6 @@
 controllerManager:
+  # Node affinity, pod affinity, and pod anti-affinity rules.
+  affinity: {}
   manager:
     args:
     - --metrics-bind-address=:8443
@@ -19,11 +21,19 @@ controllerManager:
       requests:
         cpu: 10m
         memory: 64Mi
+  # Labels a node must have for the pod to be scheduled on it.
+  nodeSelector: {}
   podSecurityContext:
     runAsNonRoot: true
+  # Name of an existing PriorityClass to assign to the pod.
+  priorityClassName: ""
   replicas: 1
   serviceAccount:
     annotations: {}
+  # Tolerations that let the pod be scheduled on tainted nodes.
+  tolerations: []
+  # Rules for spreading pods across topology domains such as nodes or zones.
+  topologySpreadConstraints: []
 controllerMetrics:
   ports:
   - name: https

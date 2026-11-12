@@ -1,0 +1,26 @@
+# Sets every scheduling value to a setting a kind cluster can still schedule.
+controllerManager:
+  nodeSelector:
+    kubernetes.io/os: linux
+  tolerations:
+  - key: example.com/dedicated
+    operator: Exists
+    effect: NoSchedule
+  affinity:
+    nodeAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 1
+        preference:
+          matchExpressions:
+          - key: kubernetes.io/os
+            operator: In
+            values:
+            - linux
+  topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels:
+        control-plane: controller-manager
+  priorityClassName: system-cluster-critical
