@@ -200,6 +200,9 @@ undeploy: ${INSTALL_YAML} ## Undeploy controller from the K8s cluster specified 
 
 ##@ Helm Chart
 
+# helm-charts/infisical-pki-issuer/templates/deployment.yaml and values.yaml are
+# hand-maintained (they add scheduling options that helmify does not generate).
+# Running this target overwrites them, so restore those edits before committing.
 .PHONY: helm-chart
 helm-chart: manifests kustomize helmify ## Generate Helm chart
 	mkdir -p helm-charts/infisical-pki-issuer

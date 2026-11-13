@@ -33,6 +33,15 @@ jobs:
       - name: Run chart-testing (lint)
         run: ct lint --config ct.yaml --charts helm-charts/infisical-pki-issuer
 
+      - name: Check that the scheduling values reach the pod spec
+        run: |
+          helm template helm-charts/infisical-pki-issuer \
+            -f helm-charts/infisical-pki-issuer/ci/scheduling-values.yaml \
+            | yq -e 'select(.kind == "Deployment") | .spec.template.spec | (
+                has("nodeSelector") and has("tolerations") and has("affinity")
+                and has("topologySpreadConstraints")
+                and .priorityClassName == "system-cluster-critical")'
+
       - name: Create kind cluster
         uses: helm/kind-action@v1.12.0
 
